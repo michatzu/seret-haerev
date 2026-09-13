@@ -17,7 +17,7 @@ export function SortSegment({ q }: { q: Query }) {
             type="button"
             role="tab"
             aria-selected={on}
-            onClick={() => router.replace(`${pathname}${queryToSearch({ ...q, sort: s }, q)}`, { scroll: false })}
+            onClick={() => router.replace(`${pathname}${queryToSearch({ ...q, sort: s })}`, { scroll: false })}
             className={`h-10 rounded-[9px] text-[13px] ${on ? "bg-seg-active font-semibold text-ink shadow-[var(--seg-shadow)]" : "font-medium text-muted"}`}
           >
             {SORT_LABELS[s]}

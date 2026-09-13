@@ -1,6 +1,7 @@
 /** Unify films across chains and assemble the snapshot. */
 import type { AdapterResult, Chain, Film, RawFilm, Screening, Snapshot, SourceReport, Venue } from "@/lib/types";
 import { normalizeTitle, shortHash } from "@/lib/text";
+import { canonicalGenres, genreLabel } from "@/lib/genres";
 
 const KIDS_GENRES = ["אנימציה", "לכל המשפחה", "ילדים", "משפחה"];
 /** Preferred source order for posters and metadata. */
@@ -129,9 +130,12 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
     // title: prefer a Hebrew title without dubbing noise, from the best-ranked source
     const cleanTitles = arr.map((f) => cleanTitle(f.title)).filter((t) => t && !/[Ѐ-ӿ]/.test(t));
     const title = (cleanTitles[0] ?? cleanTitle(arr[0].title) ?? arr[0].title).replace(/\s+/g, " ").trim();
-    const genres = [...new Set(arr.flatMap((f) => f.genres ?? []))];
+    const rawGenres = [...new Set(arr.flatMap((f) => f.genres ?? []))];
     const dubbedShare = (dubbedHeCount.get(id) ?? 0) / (totalCount.get(id) ?? 1);
-    const isKids = dubbedShare >= 0.5 || genres.some((g) => KIDS_GENRES.includes(g)) || arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title));
+    const isIsraeli = arr.some((f) => f.isIsraeli) || (pick("language") === "he" && dubbedShare < 0.5);
+    const genreKeys = canonicalGenres(rawGenres, isIsraeli);
+    const genres = genreKeys.filter((k) => k !== "israeli").map(genreLabel);
+    const isKids = dubbedShare >= 0.5 || rawGenres.some((g) => KIDS_GENRES.includes(g)) || arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title));
     films.push({
       id,
       title,
@@ -139,6 +143,7 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
       year: pick("year"),
       runtime: pick("runtime"),
       genres,
+      genreKeys,
       ageRating: pick("ageRating"),
       synopsis: pick("synopsis"),
       posterUrl: pick("posterUrl"),
@@ -147,7 +152,7 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
       cast: pick("cast"),
       language: pick("language"),
       isKids,
-      isIsraeli: arr.some((f) => f.isIsraeli) || (pick("language") === "he" && dubbedShare < 0.5),
+      isIsraeli,
       isEvent: arr.every((f) => f.isEvent),
       sources: arr.map((f) => ({ chain: f.chain, id: f.sourceId, title: f.title })),
     });

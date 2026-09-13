@@ -50,12 +50,16 @@ export interface Film {
   year?: number;
   country?: string;
   runtime?: number;
+  /** Display labels (canonical Hebrew) */
   genres: string[];
+  /** Canonical genre keys, see lib/genres.ts */
+  genreKeys: string[];
   ageRating?: string;
   synopsis?: string;
   posterUrl?: string;
   trailerUrl?: string;
   imdbRating?: number;
+  imdbVotes?: number;
   imdbId?: string;
   tmdbId?: number;
   tmdbPopularity?: number;

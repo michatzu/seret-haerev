@@ -6,12 +6,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Film } from "@/lib/types";
 import { getJson, pool } from "./http";
+import { loadImdbRatings } from "./imdb";
 
 const TMDB = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
 const CACHE_FILE = path.join(process.cwd(), "data", "enrich-cache.json");
 
-interface CacheEntry { at: string; tmdbId?: number | null; data?: Enrichment; imdbRating?: number | null; imdbAt?: string }
+interface CacheEntry { at: string; tmdbId?: number | null; data?: Enrichment; imdbRating?: number | null; imdbVotes?: number; imdbAt?: string }
 type Cache = Record<string, CacheEntry>;
 
 export interface Enrichment {
@@ -54,7 +55,6 @@ const fresh = (iso: string | undefined, days: number) => !!iso && Date.now() - n
 /** Enrich films in place. Safe no-op without TMDB_API_KEY. */
 export async function enrichFilms(films: Film[]): Promise<{ matched: number; rated: number; skipped: boolean }> {
   const key = process.env.TMDB_API_KEY;
-  const omdbKey = process.env.OMDB_API_KEY;
   if (!key) return { matched: 0, rated: 0, skipped: true };
   const cache = await loadCache();
   let matched = 0, rated = 0;
@@ -87,15 +87,33 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
     film.tmdbId = d.tmdbId;
     film.imdbId = d.imdbId;
     film.tmdbPopularity = d.popularity;
-
-    if (omdbKey && d.imdbId) {
-      if (entry.imdbRating === undefined || !fresh(entry.imdbAt, 3)) {
-        entry.imdbRating = await fetchImdbRating(omdbKey, d.imdbId).catch(() => null);
-        entry.imdbAt = new Date().toISOString();
-      }
-      if (entry.imdbRating) { film.imdbRating = entry.imdbRating; rated++; }
-    }
   });
+
+  // IMDb ratings from IMDb's own daily dataset, refreshed once a day per film
+  const need = new Set<string>();
+  for (const film of films) {
+    const e = cache[film.id];
+    if (film.imdbId && (!e?.imdbAt || !fresh(e.imdbAt, 1))) need.add(film.imdbId);
+  }
+  if (need.size) {
+    try {
+      const ratings = await loadImdbRatings(need);
+      for (const film of films) {
+        const e = cache[film.id];
+        if (!film.imdbId || !e || !need.has(film.imdbId)) continue;
+        const r = ratings.get(film.imdbId);
+        e.imdbRating = r?.rating ?? null;
+        e.imdbVotes = r?.votes;
+        e.imdbAt = new Date().toISOString();
+      }
+    } catch (err) {
+      console.warn("imdb ratings:", err instanceof Error ? err.message : err);
+    }
+  }
+  for (const film of films) {
+    const e = cache[film.id];
+    if (e?.imdbRating) { film.imdbRating = e.imdbRating; film.imdbVotes = e.imdbVotes; rated++; }
+  }
 
   await saveCache(cache);
   return { matched, rated, skipped: false };
@@ -164,10 +182,4 @@ async function fetchDetails(key: string, id: number): Promise<Enrichment> {
     language: he.original_language,
     popularity: he.popularity,
   };
-}
-
-async function fetchImdbRating(key: string, imdbId: string): Promise<number | null> {
-  const r = await getJson<{ imdbRating?: string; Response: string }>(`https://www.omdbapi.com/?apikey=${key}&i=${imdbId}`);
-  const n = Number(r.imdbRating);
-  return Number.isFinite(n) && n > 0 ? n : null;
 }
