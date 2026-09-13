@@ -4,7 +4,9 @@ import type { AdapterResult, Chain, SourceReport } from "@/lib/types";
 import { PLANET, RAVHEN, scrapeCineworld } from "@/scraper/cineworld";
 import { scrapeCinemaCity, scrapeHot, scrapeMovieland } from "@/scraper/modulus";
 import { scrapeLev } from "@/scraper/lev";
+import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { buildSnapshot } from "@/scraper/normalize";
+import { enrichFilms } from "@/scraper/tmdb";
 
 const tasks: { chain: Chain; run: () => Promise<AdapterResult> }[] = [
   { chain: "planet", run: () => scrapeCineworld(PLANET) },
@@ -13,6 +15,7 @@ const tasks: { chain: Chain; run: () => Promise<AdapterResult> }[] = [
   { chain: "hot", run: scrapeHot },
   { chain: "movieland", run: scrapeMovieland },
   { chain: "lev", run: scrapeLev },
+  { chain: "cinematheque", run: scrapeCinematheques },
 ];
 
 async function main() {
@@ -33,6 +36,9 @@ async function main() {
     }),
   );
   const snapshot = buildSnapshot(results, reports.sort((a, b) => a.chain.localeCompare(b.chain)));
+  const t1 = Date.now();
+  const enriched = await enrichFilms(snapshot.films);
+  console.log(enriched.skipped ? "enrich: skipped (no TMDB_API_KEY)" : `enrich: tmdb=${enriched.matched}/${snapshot.films.length} imdb=${enriched.rated} ${Date.now() - t1}ms`);
   const out = path.join(process.cwd(), "data", "snapshot.json");
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snapshot));

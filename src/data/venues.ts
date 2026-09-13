@@ -44,6 +44,10 @@ export const VENUES: Venue[] = [
   { id: "ml-1294", chain: "movieland", name: "מובילנד עפולה", city: "עפולה", address: "יוסף ברזילי 5, קניון בלו וואלי", lat: 32.612, lng: 35.288, kind: "multiplex" },
   { id: "ml-1295", chain: "movieland", name: "Summer Sky עזריאלי", city: "תל אביב", address: "גג קניון עזריאלי", lat: 32.0745, lng: 34.792, kind: "outdoor" },
   { id: "ml-1296", chain: "movieland", name: "מובילנד בת ים", city: "בת ים", lat: 32.018, lng: 34.745, kind: "multiplex" },
+  // ---- Cinematheques ----
+  { id: "cinematheque-jlm", chain: "cinematheque", name: "סינמטק ירושלים", city: "ירושלים", address: "דרך חברון 11", lat: 31.7712, lng: 35.2255, kind: "cinematheque", url: "https://jer-cin.org.il" },
+  { id: "cinematheque-ta", chain: "cinematheque", name: "סינמטק תל אביב", city: "תל אביב", address: "שפרינצק 2", lat: 32.0672, lng: 34.7832, kind: "cinematheque", url: "https://www.cinema.co.il" },
+  { id: "cinematheque-haifa", chain: "cinematheque", name: "סינמטק חיפה", city: "חיפה", address: "שדרות הנשיא 142", lat: 32.8073, lng: 34.9866, kind: "cinematheque", url: "https://www.haifacin.co.il" },
   // ---- Lev ----
   { id: "lev-tlv", chain: "lev", name: "לב דיזנגוף", city: "תל אביב", address: "דיזנגוף 50, דיזנגוף סנטר", lat: 32.0753, lng: 34.7751, kind: "boutique" },
   { id: "lev-daniel", chain: "lev", name: "לב דניאל", city: "הרצליה", address: "מלון דניאל, הרצליה פיתוח", lat: 32.173, lng: 34.799, kind: "boutique" },

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "scrape": "tsx --tsconfig tsconfig.json scripts/scrape.ts"
+    "scrape": "node --env-file-if-exists=.env.local --import tsx scripts/scrape.ts"
   },
   "dependencies": {
     "next": "16.3.5",

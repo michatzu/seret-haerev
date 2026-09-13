@@ -56,6 +56,10 @@ export interface Film {
   posterUrl?: string;
   trailerUrl?: string;
   imdbRating?: number;
+  imdbId?: string;
+  tmdbId?: number;
+  tmdbPopularity?: number;
+  backdropUrl?: string;
   director?: string;
   cast?: string[];
   /** Original spoken language (ISO 639-1) when known */
