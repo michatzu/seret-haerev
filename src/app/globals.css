@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
+/* ---- design tokens (light = day, dark = night) ---- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --line: #e4e7ec;
+  --ink: #101828;
+  --muted: #667085;
+  --accent: #0e7c86;
+  --accent-ink: #ffffff;
+  --pill-bg: #e6f4f5;
+  --pill-ink: #0a5f67;
+  --pill-tag: #3b7f86;
+  --plus-bg: #f2f4f7;
+  --plus-ink: #475467;
+  --seg-bg: #e9edf1;
+  --seg-active: #ffffff;
+  --seg-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --ph: #eef1f4;
+  --ph-ink: #98a2b3;
+  --header-bg: #ffffff;
+  --overlay: rgba(16, 24, 40, 0.5);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #12151b;
+    --card: #1b1f27;
+    --line: rgba(255, 255, 255, 0.09);
+    --ink: #f3f4f6;
+    --muted: #9aa1ad;
+    --accent: #8fd6da;
+    --accent-ink: #0f1a1c;
+    --pill-bg: rgba(143, 214, 218, 0.14);
+    --pill-ink: #8fd6da;
+    --pill-tag: #6fb3b8;
+    --plus-bg: rgba(255, 255, 255, 0.07);
+    --plus-ink: #c3c8d1;
+    --seg-bg: #1b1f27;
+    --seg-active: #2a303b;
+    --seg-shadow: none;
+    --ph: #232830;
+    --ph-ink: #6b7280;
+    --header-bg: #171b22;
+    --overlay: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-pill-bg: var(--pill-bg);
+  --color-pill-ink: var(--pill-ink);
+  --color-pill-tag: var(--pill-tag);
+  --color-plus-bg: var(--plus-bg);
+  --color-plus-ink: var(--plus-ink);
+  --color-seg-bg: var(--seg-bg);
+  --color-seg-active: var(--seg-active);
+  --color-ph: var(--ph);
+  --color-ph-ink: var(--ph-ink);
+  --color-header: var(--header-bg);
+  --font-sans: var(--font-plex), "Arial Hebrew", system-ui, sans-serif;
+  --font-serif: var(--font-frank), "David", Georgia, serif;
+}
+
+html {
+  background: var(--bg);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* native <details> used for accordions */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .chev {
+  transform: rotate(180deg);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* filter word: dotted underline, no frame */
+.fword {
+  border-bottom: 1px dotted var(--muted);
+  padding-bottom: 1px;
+}
+
+/* hide scrollbars on horizontal chip rows */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
