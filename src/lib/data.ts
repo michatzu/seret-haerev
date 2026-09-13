@@ -1,18 +1,17 @@
 import "server-only";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Film, Screening, Snapshot, Venue } from "./types";
 
-let cache: { mtimeMs: number; snapshot: Snapshot; films: Map<string, Film>; venues: Map<string, Venue>; byFilm: Map<string, Screening[]> } | null = null;
+interface Loaded { key: string; snapshot: Snapshot; films: Map<string, Film>; venues: Map<string, Venue>; byFilm: Map<string, Screening[]> }
+let cache: Loaded | null = null;
 
 const FILE = path.join(process.cwd(), "data", "snapshot.json");
+/** When set (production), the snapshot is fetched from here (e.g. the raw file on the repo's `data` branch). */
+const URL = process.env.SNAPSHOT_URL;
+const REVALIDATE_SECONDS = 600;
 
-/** Loads data/snapshot.json (re-read when the file changes). */
-export async function getData() {
-  const { stat } = await import("node:fs/promises");
-  const st = await stat(FILE);
-  if (cache && cache.mtimeMs === st.mtimeMs) return cache;
-  const snapshot = JSON.parse(await readFile(FILE, "utf8")) as Snapshot;
+function index(snapshot: Snapshot, key: string): Loaded {
   const films = new Map(snapshot.films.map((f) => [f.id, f]));
   const venues = new Map(snapshot.venues.map((v) => [v.id, v]));
   const byFilm = new Map<string, Screening[]>();
@@ -21,6 +20,25 @@ export async function getData() {
     if (arr) arr.push(s);
     else byFilm.set(s.filmId, [s]);
   }
-  cache = { mtimeMs: st.mtimeMs, snapshot, films, venues, byFilm };
+  return { key, snapshot, films, venues, byFilm };
+}
+
+/** Loads the snapshot: remote URL with 10-minute revalidation, else data/snapshot.json (re-read when it changes). */
+export async function getData(): Promise<Loaded> {
+  if (URL) {
+    const res = await fetch(URL, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) {
+      if (cache) return cache;
+      throw new Error(`snapshot fetch failed: HTTP ${res.status}`);
+    }
+    const snapshot = (await res.json()) as Snapshot;
+    if (cache && cache.key === snapshot.generatedAt) return cache;
+    cache = index(snapshot, snapshot.generatedAt);
+    return cache;
+  }
+  const st = await stat(FILE);
+  const key = String(st.mtimeMs);
+  if (cache && cache.key === key) return cache;
+  cache = index(JSON.parse(await readFile(FILE, "utf8")) as Snapshot, key);
   return cache;
 }

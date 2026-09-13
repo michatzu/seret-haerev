@@ -1,0 +1,49 @@
+name: Refresh showtimes
+
+on:
+  schedule:
+    - cron: "5 * * * *" # every hour at :05 (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Restore enrichment caches from the data branch
+        run: |
+          git fetch origin data:data 2>/dev/null || true
+          git show data:enrich-cache.json > data/enrich-cache.json 2>/dev/null || true
+          git show data:poster-cache.json > data/poster-cache.json 2>/dev/null || true
+      - name: Scrape
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+        run: npm run scrape
+      - name: Publish snapshot to the data branch (single commit, no history)
+        run: |
+          set -e
+          mkdir -p /tmp/data && cp data/snapshot.json data/enrich-cache.json data/poster-cache.json /tmp/data/ 2>/dev/null || cp data/snapshot.json /tmp/data/
+          cd /tmp/data
+          git init -q -b data
+          git config user.name "seret-haerev bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git commit -q -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
+      - name: Trigger Vercel redeploy
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK != '' }}
+        run: curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}" > /dev/null
