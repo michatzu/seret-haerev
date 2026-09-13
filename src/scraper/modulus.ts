@@ -5,7 +5,7 @@
 import type { AdapterResult, Attr, RawFilm, RawScreening } from "@/lib/types";
 import { VENUE_BY_ID, VENUES } from "@/data/venues";
 import { dmyToIso, localIsoToIso } from "@/lib/tz";
-import { getJson } from "./http";
+import { getJson, getText } from "./http";
 
 const KIDS_WORDS = ["מדובב", "מדובבת", "g kids", "kids"];
 
@@ -64,6 +64,7 @@ interface HotMovie { MovieName: string; MovieId: number; Dates: HotDate[] }
 
 export async function scrapeHot(): Promise<AdapterResult> {
   const rows = await getJson<HotMovie[]>("https://hotcinema.co.il/tickets/theaterevents?theaterid=1");
+  const posters = await hotPosters(rows[0]?.MovieId).catch(() => new Map<number, string>());
   const films: RawFilm[] = [];
   const screenings: RawScreening[] = [];
   for (const row of rows) {
@@ -71,7 +72,7 @@ export async function scrapeHot(): Promise<AdapterResult> {
     const title = row.MovieName.replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
     const anyDubbed = row.Dates.some((d) => d.DubbedLanguage);
     const allPerformance = row.Dates.length > 0 && row.Dates.every((d) => d.IsPerformance);
-    films.push({ chain: "hot", sourceId: id, title, isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: allPerformance || looksLikeEvent(title) });
+    films.push({ chain: "hot", sourceId: id, title, posterUrl: posters.get(row.MovieId), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: allPerformance || looksLikeEvent(title) });
     for (const d of row.Dates) {
       const venueId = `hot-${d.TheaterId}`;
       if (!VENUE_BY_ID.has(venueId)) continue;
@@ -182,4 +183,16 @@ const EVENT_WORDS = ["סטנדאפ", "הצגה", "הצגת", "מופע", "אופ
 export function looksLikeEvent(title: string): boolean {
   const t = title.toLowerCase();
   return EVENT_WORDS.some((w) => t.includes(w));
+}
+
+/** Any Hot movie page embeds `app.movies = [...]` with poster file names for the whole catalogue. */
+async function hotPosters(anyMovieId?: number): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (!anyMovieId) return map;
+  const html = await getText(`https://hotcinema.co.il/movie/${anyMovieId}`);
+  const m = /app\.movies\s*=\s*(\[[\s\S]*?\]);/.exec(html);
+  if (!m) return map;
+  const list = JSON.parse(m[1]) as { ID: number; Poster?: string | null }[];
+  for (const x of list) if (x.Poster) map.set(x.ID, `https://hotcinema.co.il/images/${encodeURIComponent(x.Poster)}?w=342&h=491&mode=crop`);
+  return map;
 }

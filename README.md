@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# סרט הערב
 
-## Getting Started
+מה מוקרן לידך היום, בכל בתי הקולנוע בישראל, במקום אחד. רשימה מינימליסטית של סרטים לפי קרבה, שעה ו-IMDb, ולחיצה על שעה פותחת ישירות את בחירת המושבים באתר בית הקולנוע.
 
-First, run the development server:
+## איך זה עובד
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- `npm run scrape` — אוסף את כל ההקרנות מהרשתות (פלאנט, רב חן, סינמה סיטי, הוט סינמה, מובילנד, לב) ומהסינמטקים (תל אביב, ירושלים, חיפה), מאחד סרטים בין הרשתות, ומעשיר אותם מ-TMDB ו-OMDb אם יש מפתחות, ושומר ל-`data/snapshot.json`.
+- `npm run dev` — האתר (Next.js, App Router). קורא את הקובץ ומחשב מרחקים מהמיקום של המשתמש.
+- המיקום: עוגיית `loc` (נבחרת בכפתור המיקום), אחרת העיר לפי כתובת ה-IP (כותרות של Vercel), אחרת תל אביב.
+- הסינון חי בכתובת: `?day=today|tomorrow|d2|d3|week&from=now|noon|evening|night|all&r=5|15|30|all&hall=all|imax|vip|4dx|cinematheque|outdoor&sort=dist|time|imdb`.
+
+## מבנה
+
+```
+scripts/scrape.ts        הרצת כל המתאמים וכתיבת ה-snapshot
+src/scraper/             מתאם לכל מקור (cineworld, modulus, lev, cinematheques), normalize, tmdb
+src/data/venues.ts       בתי הקולנוע וקואורדינטות
+src/lib/                 טיפוסים, זמן (Asia/Jerusalem), גיאוגרפיה, סינון ומיון (query.ts), טעינת נתונים
+src/app/                 עמודים: / (הרשימה), /film/[id] (דף סרט)
+src/components/          רכיבי UI
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## הגדרות
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+העתיקו את `.env.example` ל-`.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `TMDB_API_KEY` — פוסטרים, תקצירים בעברית, מדינה, שנה, במאי ושחקנים ([themoviedb.org](https://www.themoviedb.org/settings/api), חינם).
+- `OMDB_API_KEY` — ציון IMDb ([omdbapi.com](https://www.omdbapi.com/apikey.aspx), חינם עד 1,000 בקשות ביום).
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+בלי המפתחות האתר עובד, רק עם פחות מידע על הסרטים.

@@ -18,7 +18,9 @@ export function subLine(row: FilmRow["film"]): string {
 }
 
 export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: string }) {
-  const shown = row.venues.slice(0, MAX_VENUES);
+  // by proximity, except when the user sorts by time: then the venue with the earliest screening leads
+  const ordered = q.sort === "time" ? [...row.venues].sort((a, b) => a.screenings[0].startsAt.localeCompare(b.screenings[0].startsAt) || a.distanceKm - b.distanceKm) : row.venues;
+  const shown = ordered.slice(0, MAX_VENUES);
   const shownCount = shown.reduce((n, v) => n + (q.day === "week" ? v.screenings.length : Math.min(v.screenings.length, pickTimes(v.screenings).length)), 0);
   const restScreenings = row.total - shownCount;
   const restVenues = row.venues.length - shown.length;
