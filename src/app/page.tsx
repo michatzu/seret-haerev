@@ -26,7 +26,7 @@ export default async function Home(props: PageProps<"/">) {
         <SortSegment q={q} />
 
         {list.main.length === 0 && (
-          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה.</div>
+          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה. נסו להרחיב את המרחק או את השעה.</div>
         )}
 
         <div className="flex flex-col gap-2.5">

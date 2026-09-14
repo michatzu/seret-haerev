@@ -38,7 +38,12 @@ export const HALLS: HallKey[] = ["imax", "vip", "4dx", "screenx", "3d", "cinemat
 const SORTS: SortKey[] = ["dist", "time", "imdb"];
 
 export const DEFAULT_RADIUS: RadiusKey = "15";
-export const defaultFrom = (day: DayKey): FromKey => (day === "today" ? "now" : "evening");
+/**
+ * Today the useful default is "from now", because anything earlier has already started. On any
+ * other day there is no "now" to start from, and narrowing to the evening hides matinees the
+ * viewer never asked to hide, so the whole day is shown.
+ */
+export const defaultFrom = (day: DayKey): FromKey => (day === "today" ? "now" : "all");
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);

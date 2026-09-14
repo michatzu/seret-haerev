@@ -45,7 +45,7 @@ export function ListsView() {
           <div className="flex items-center justify-between">
             <h1 className="font-serif text-[26px] font-bold leading-none text-ink">הרשימות שלי</h1>
             <Link href="/" className="flex h-11 items-center gap-1 text-[14px] font-medium text-accent">
-              <span>לרשימה</span>
+              <span>כל הסרטים</span>
               <ChevronForward width={16} height={16} />
             </Link>
           </div>
@@ -67,7 +67,7 @@ export function ListsView() {
 
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-2.5 px-4 pb-10 pt-3.5">
         {!ready || loading ? (
-          <div className="px-1 py-8 text-center text-[15px] text-muted">רגע…</div>
+          <div className="px-1 py-8 text-center text-[15px] text-muted">טוען…</div>
         ) : !ids.length ? (
           <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] leading-[1.6] text-muted">{EMPTY_TEXT[tab]}</div>
         ) : (
@@ -82,10 +82,10 @@ export function ListsView() {
                   <div className="text-[12px] text-muted">
                     {[languageName(f.language), f.year, f.imdbRating ? `IMDb ${f.imdbRating.toFixed(1)}` : undefined].filter(Boolean).join(" · ")}
                   </div>
-                  {f.screenings > 0 ? <div className="text-[12px] text-muted">עדיין מוקרן</div> : <div className="text-[12px] text-muted">כבר לא מוקרן</div>}
+                  {f.screenings > 0 ? <div className="text-[12px] text-muted">מוקרן עכשיו</div> : <div className="text-[12px] text-muted">ירד מהמסכים</div>}
                 </div>
                 <button type="button" onClick={() => setStatus(f.id, tab)} className="h-9 shrink-0 rounded-lg border border-line px-3 text-[13px] font-medium text-ink">
-                  החזרה
+                  הסרה
                 </button>
               </article>
             ))}
@@ -94,7 +94,7 @@ export function ListsView() {
               ריקון הרשימה
             </button>
             {ids.length > rows.length && !loading && (
-              <p className="px-1 text-center text-[13px] text-muted">{ids.length - rows.length} סרטים כבר אינם בלוח ההקרנות.</p>
+              <p className="px-1 text-center text-[13px] text-muted">{ids.length - rows.length} סרטים ברשימה כבר אינם מוקרנים.</p>
             )}
           </>
         )}

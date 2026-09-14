@@ -3,35 +3,41 @@
 import { Bookmark, BookmarkFilled, Check, Eye, EyeOff } from "./Icons";
 import { setStatus, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 
-const ICONS: Record<FilmStatus, { off: typeof Eye; on: typeof Eye; label: string }> = {
-  want: { off: Bookmark, on: BookmarkFilled, label: "רוצה לראות" },
-  watched: { off: Eye, on: Check, label: "צפיתי" },
-  skip: { off: EyeOff, on: EyeOff, label: "לא מעניין" },
-};
+/**
+ * The three list buttons, in the order the hand expects them: "want" on the right, "watched" in the
+ * middle, "not interested" on the left, which in a right-to-left page is this source order.
+ * Quiet until touched: scrolling past a hundred cards should not feel like being asked a hundred
+ * questions, so the resting state is a hairline outline and only the chosen one takes colour.
+ */
+const ACTIONS: { status: FilmStatus; label: string; off: typeof Eye; on: typeof Eye }[] = [
+  { status: "want", label: "רוצה", off: Bookmark, on: BookmarkFilled },
+  { status: "watched", label: "צפיתי", off: Eye, on: Check },
+  { status: "skip", label: "לא מעניין", off: EyeOff, on: EyeOff },
+];
 
-/** The three list toggles. A film carries at most one status, so picking one clears the others. */
 export function FilmActions({ filmId, title, size = "card" }: { filmId: string; title: string; size?: "card" | "page" }) {
   const { store, ready } = useFilmLists();
   const current = store[filmId];
-  const box = size === "page" ? "h-11 w-11" : "h-8 w-8";
-  const icon = size === "page" ? 20 : 17;
+  const big = size === "page";
 
   return (
-    <div className={`flex shrink-0 items-center ${size === "page" ? "gap-1" : "-me-1 -mt-1 gap-0"}`} style={{ opacity: ready ? 1 : 0 }}>
-      {(["want", "watched", "skip"] as FilmStatus[]).map((s) => {
-        const on = current === s;
-        const Icon = on ? ICONS[s].on : ICONS[s].off;
+    <div className={`flex items-stretch ${big ? "gap-2" : "gap-1.5"}`} style={{ opacity: ready ? 1 : 0.55 }}>
+      {ACTIONS.map(({ status, label, off, on }) => {
+        const active = current === status;
+        const Icon = active ? on : off;
         return (
           <button
-            key={s}
+            key={status}
             type="button"
-            aria-pressed={on}
-            aria-label={`${ICONS[s].label}: ${title}`}
-            title={ICONS[s].label}
-            onClick={() => setStatus(filmId, s)}
-            className={`flex ${box} touch-manipulation items-center justify-center rounded-lg ${on ? "text-accent" : "text-muted"}`}
+            aria-pressed={active}
+            aria-label={`${label}: ${title}`}
+            onClick={() => setStatus(filmId, status)}
+            className={`flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border text-[12px] font-medium transition-colors ${
+              big ? "h-11 text-[14px]" : "h-[34px]"
+            } ${active ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent" : "border-line text-muted"}`}
           >
-            <Icon width={icon} height={icon} />
+            <Icon width={big ? 18 : 15} height={big ? 18 : 15} />
+            <span>{label}</span>
           </button>
         );
       })}

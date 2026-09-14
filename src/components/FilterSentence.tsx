@@ -16,6 +16,15 @@ export interface VenueOption { id: string; name: string; km: number }
 type Key = "day" | "from" | "radius" | "halls" | "venues" | "genres";
 interface Word { key: Key; label: string; changed: boolean }
 
+/**
+ * Changing the day keeps a time the viewer chose on purpose, but moves between the two defaults:
+ * "from now" only means anything today, and on another day the default is the whole day.
+ */
+function nextFrom(q: Query, day: DayKey): FromKey {
+  if (q.from !== defaultFrom(q.day)) return q.from === "now" && day !== "today" ? "all" : q.from;
+  return defaultFrom(day);
+}
+
 export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Query; venues: VenueOption[]; genres: string[]; showGenres?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,7 +76,7 @@ export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Qu
 
       <BottomSheet open={open === "day"} onClose={close} title="יום">
         {(["today", "tomorrow", "d2", "d3", "week", "month"] as DayKey[]).map((d, i) => (
-          <SheetOption key={d} first={i === 0} selected={q.day === d} onSelect={() => go({ ...q, day: d, from: d === "today" ? (q.day !== "today" && q.from === "evening" ? "now" : q.from) : q.from === "now" ? "evening" : q.from, sort: isMultiDay(d) && q.sort === "time" ? "dist" : q.sort })}>
+          <SheetOption key={d} first={i === 0} selected={q.day === d} onSelect={() => go({ ...q, day: d, from: nextFrom(q, d), sort: isMultiDay(d) && q.sort === "time" ? "dist" : q.sort })}>
             {dayLabel(d)}
           </SheetOption>
         ))}

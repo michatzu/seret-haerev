@@ -73,7 +73,7 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
         <FilterSentence q={q} venues={venueOptions(data.venues.values(), place)} genres={[]} showGenres={false} />
 
         {venues.length === 0 && (
-          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה.</div>
+          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות של הסרט הזה בסינון הנוכחי. נסו יום אחר או מרחק גדול יותר.</div>
         )}
 
         <div className="flex flex-col gap-2.5">
