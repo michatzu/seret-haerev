@@ -4,7 +4,7 @@ import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
 import { formatDaySet, languageName } from "@/lib/format";
-import { pickTimes, weekday, type FilmRow, type Query } from "@/lib/query";
+import { isMultiDay, pickTimes, weekday, type FilmRow, type Query } from "@/lib/query";
 import type { Screening } from "@/lib/types";
 
 const MAX_VENUES = 2;
@@ -21,11 +21,11 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
   // by proximity, except when the user sorts by time: then the venue with the earliest screening leads
   const ordered = q.sort === "time" ? [...row.venues].sort((a, b) => a.screenings[0].startsAt.localeCompare(b.screenings[0].startsAt) || a.distanceKm - b.distanceKm) : row.venues;
   const shown = ordered.slice(0, MAX_VENUES);
-  const shownCount = shown.reduce((n, v) => n + (q.day === "week" ? v.screenings.length : Math.min(v.screenings.length, pickTimes(v.screenings).length)), 0);
+  const shownCount = shown.reduce((n, v) => n + (isMultiDay(q.day) ? v.screenings.length : Math.min(v.screenings.length, pickTimes(v.screenings).length)), 0);
   const restScreenings = row.total - shownCount;
   const restVenues = row.venues.length - shown.length;
   const more =
-    q.day === "week"
+    isMultiDay(q.day)
       ? restVenues > 0 ? `עוד ${restVenues} בתי קולנוע` : undefined
       : restScreenings > 0
         ? `עוד ${restScreenings} הקרנות${restVenues > 0 ? ` ב־${restVenues} בתי קולנוע` : ""}`
@@ -48,7 +48,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
               <span className="truncate font-medium text-ink">{v.venue.name}</span>
               <span className="text-muted">{formatDistance(v.distanceKm)}</span>
               <span className="ms-auto flex shrink-0 gap-1.5">
-                {q.day === "week" ? <WeekPills ss={v.screenings} /> : <DayPills ss={v.screenings} />}
+                {isMultiDay(q.day) ? <WeekPills ss={v.screenings} /> : <DayPills ss={v.screenings} />}
               </span>
             </div>
           ))}

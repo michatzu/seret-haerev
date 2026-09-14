@@ -8,7 +8,7 @@ import { getData } from "@/lib/data";
 import { getPlace } from "@/lib/location";
 import { distanceKm, formatDistance } from "@/lib/geo";
 import { venueOptions } from "@/lib/options";
-import { RADIUS_KM, datesFor, parseQuery, passes, queryToSearch } from "@/lib/query";
+import { RADIUS_KM, datesFor, isMultiDay, parseQuery, passes, queryToSearch } from "@/lib/query";
 import { ymdInIsrael } from "@/lib/tz";
 import { dayName, formatTime } from "@/lib/format";
 import type { Screening } from "@/lib/types";
@@ -48,7 +48,7 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
   const open = near.slice(0, OPEN_VENUES);
   const rest = [...near.slice(OPEN_VENUES), ...far];
   const listSearch = queryToSearch({ ...q, kids: false, far: false, venues: q.venues });
-  const multiDay = q.day === "week";
+  const multiDay = isMultiDay(q.day);
 
   return (
     <>

@@ -4,7 +4,7 @@ import { distanceKm, type LatLng } from "./geo";
 import { TZ, ymdInIsrael, ymdPlusDays } from "./tz";
 import { genreLabel } from "./genres";
 
-export type DayKey = "today" | "tomorrow" | "d2" | "d3" | "week";
+export type DayKey = "today" | "tomorrow" | "d2" | "d3" | "week" | "month";
 export type FromKey = "now" | "noon" | "evening" | "night" | "all";
 export type RadiusKey = "5" | "15" | "30" | "all";
 export type HallKey = "imax" | "vip" | "4dx" | "screenx" | "3d" | "cinematheque" | "outdoor";
@@ -26,7 +26,10 @@ export interface Query {
   far: boolean; // "farther" group expanded
 }
 
-const DAYS: DayKey[] = ["today", "tomorrow", "d2", "d3", "week"];
+/** More than one day: the list groups by day and cannot sort by clock time. */
+export const isMultiDay = (d: DayKey) => d === "week" || d === "month";
+
+const DAYS: DayKey[] = ["today", "tomorrow", "d2", "d3", "week", "month"];
 const FROMS: FromKey[] = ["now", "noon", "evening", "night", "all"];
 const RADII: RadiusKey[] = ["5", "15", "30", "all"];
 export const HALLS: HallKey[] = ["imax", "vip", "4dx", "screenx", "3d", "cinematheque", "outdoor"];
@@ -49,7 +52,7 @@ export function parseQuery(sp: SP): Query {
   const venues = [...new Set(list(sp.v))];
   const genres = [...new Set(list(sp.g))];
   let sort = pick(one(sp.sort), SORTS, "dist");
-  if (day === "week" && sort === "time") sort = "dist";
+  if (isMultiDay(day) && sort === "time") sort = "dist";
   return { day, from, radius, halls, venues, genres, sort, kids: one(sp.kids) === "1", far: one(sp.far) === "1" };
 }
 
@@ -76,6 +79,7 @@ export function dayLabel(day: DayKey, now = new Date()): string {
     case "today": return "היום";
     case "tomorrow": return "מחר";
     case "week": return "השבוע";
+    case "month": return "החודש";
     case "d2": return wdFmt.format(new Date(now.getTime() + 2 * 864e5));
     case "d3": return wdFmt.format(new Date(now.getTime() + 3 * 864e5));
   }
@@ -113,6 +117,7 @@ export function datesFor(day: DayKey, now = new Date()): string[] {
     case "d2": return [ymdPlusDays(2, now)];
     case "d3": return [ymdPlusDays(3, now)];
     case "week": return Array.from({ length: 7 }, (_, i) => ymdPlusDays(i, now));
+    case "month": return Array.from({ length: 31 }, (_, i) => ymdPlusDays(i, now));
   }
 }
 

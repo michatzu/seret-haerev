@@ -8,7 +8,7 @@
 - `npm run dev` — האתר (Next.js, App Router). קורא את הקובץ ומחשב מרחקים מהמיקום של המשתמש.
 - הפוסטרים עוברים דרך `/api/poster/[id]`: הוא מנסה את כל המקורות שנאספו לאותו סרט לפי הסדר, שולח לכל רשת Referer משלה (לב חוסמת הטמעה חיצונית), ומחזיר תמונת ברירת מחדל אם הכול נכשל.
 - המיקום: עוגיית `loc` (נבחרת בכפתור המיקום), אחרת העיר לפי כתובת ה-IP (כותרות של Vercel), אחרת תל אביב.
-- הסינון חי בכתובת: `?day=today|tomorrow|d2|d3|week&from=now|noon,evening|all&r=5|15|30|all&hall=imax,vip,4dx,screenx,3d,cinematheque,outdoor&v=<venue ids>&g=<genre keys>&sort=dist|time|imdb&kids=1&far=1`.
+- הסינון חי בכתובת: `?day=today|tomorrow|d2|d3|week|month&from=now|noon,evening|all&r=5|15|30|all&hall=imax,vip,4dx,screenx,3d,cinematheque,outdoor&v=<venue ids>&g=<genre keys>&sort=dist|time|imdb&kids=1&far=1`.
 
 ### פסטיבלים
 
