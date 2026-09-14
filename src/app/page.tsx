@@ -17,7 +17,7 @@ export default async function Home(props: PageProps<"/">) {
   const [place, data] = await Promise.all([getPlace(), getData()]);
   const now = new Date();
   const list = buildList(data.films, data.venues, data.snapshot.screenings, q, place, now);
-  const search = queryToSearch({ ...q, kids: false, far: false });
+  const search = queryToSearch({ ...q, kids: false, small: false, far: false });
 
   return (
     <>
@@ -35,6 +35,9 @@ export default async function Home(props: PageProps<"/">) {
           ))}
           <LazyGroup label="לילדים ומדובבים" count={list.kids.length} param="kids" open={q.kids}>
             {q.kids && list.kids.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
+          </LazyGroup>
+          <LazyGroup label="סרטים קטנים" count={list.small.length} param="small" open={q.small}>
+            {q.small && list.small.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
           </LazyGroup>
           <LazyGroup label="מוקרן רחוק יותר" count={list.farther.length} param="far" open={q.far}>
             {q.far && list.farther.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}

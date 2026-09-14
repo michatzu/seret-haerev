@@ -48,7 +48,7 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
   const far = venues.filter((v) => v.distanceKm > maxKm);
   const open = near.slice(0, OPEN_VENUES);
   const rest = [...near.slice(OPEN_VENUES), ...far];
-  const listSearch = queryToSearch({ ...q, kids: false, far: false, venues: q.venues });
+  const listSearch = queryToSearch({ ...q, kids: false, small: false, far: false, venues: q.venues });
   const multiDay = isMultiDay(q.day);
 
   return (
@@ -66,9 +66,7 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
             )}
           </div>
         )}
-        <div className="flex">
-          <FilmActions filmId={film.id} title={film.title} size="page" />
-        </div>
+        <FilmActions filmId={film.id} title={film.title} size="page" />
         <div className="h-px bg-line" />
         <FilterSentence q={q} venues={venueOptions(data.venues.values(), place)} genres={[]} showGenres={false} />
 

@@ -21,7 +21,7 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
   const right = useRef<HTMLDivElement>(null);
   const left = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
-  const g = useRef({ id: -1, x: 0, y: 0, axis: "none" as "none" | "x" | "y", dx: 0, swiped: false });
+  const g = useRef({ id: -1, x: 0, y: 0, axis: "none" as "none" | "x" | "y", dx: 0, swiped: false, origin: 0 });
 
   const paint = useCallback(() => {
     frame.current = 0;
@@ -66,7 +66,10 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
     const { dx, axis } = g.current;
     g.current.id = -1;
     g.current.axis = "none";
-    if (axis !== "x") return;
+    if (axis !== "x") {
+      if (card.current) card.current.style.willChange = "";
+      return;
+    }
     if (Math.abs(dx) >= COMMIT_PX) {
       const status = dx > 0 ? "want" : "skip";
       settle(dx > 0 ? window.innerWidth : -window.innerWidth, () => {
@@ -75,11 +78,17 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
       });
       return;
     }
-    settle(0, () => { g.current.dx = 0; schedule(); });
+    settle(0, () => {
+      g.current.dx = 0;
+      schedule();
+      if (card.current) card.current.style.willChange = "";
+    });
   }, [filmId, settle, schedule]);
 
   return (
-    <div className="relative">
+    // data-film is on the outer element: hiding only the card would leave its wrapper, and
+    // the list is a flex column, so an empty wrapper still takes a gap
+    <div data-film={filmId} className="relative">
       {/* hints sit behind the card and never move, so there is nothing to lay out mid-gesture */}
       <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-between overflow-hidden rounded-xl px-5">
         <div ref={left} style={{ opacity: 0 }} className="flex items-center gap-1.5 text-[13px] font-medium text-muted transition-none data-[armed=1]:text-ink">
@@ -97,7 +106,7 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
         className="relative touch-pan-y"
         onPointerDown={(e) => {
           if (e.pointerType === "mouse" || g.current.id !== -1) return;
-          g.current = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: "none", dx: 0, swiped: false };
+          g.current = { id: e.pointerId, x: e.clientX, y: e.clientY, axis: "none", dx: 0, swiped: false, origin: 0 };
           if (card.current) card.current.style.transition = "";
         }}
         onPointerMove={(e) => {
@@ -109,13 +118,14 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
             if (Math.abs(mx) < ENGAGE_PX && Math.abs(my) < ENGAGE_PX) return;
             // a gesture that started vertically belongs to the scroller, and never comes back
             s.axis = Math.abs(mx) > Math.abs(my) ? "x" : "y";
-            if (s.axis === "x") {
-              s.swiped = true;
-              try { e.currentTarget.setPointerCapture(s.id); } catch { /* capture is a nicety */ }
-            }
+            if (s.axis !== "x") return;
+            s.swiped = true;
+            s.origin = mx; // the card starts moving from where the finger is, not ten pixels on
+            try { e.currentTarget.setPointerCapture(s.id); } catch { /* capture is a nicety */ }
+            if (card.current) card.current.style.willChange = "transform";
           }
           if (s.axis !== "x") return;
-          s.dx = damp(mx);
+          s.dx = damp(mx - s.origin);
           schedule();
         }}
         onPointerUp={finish}

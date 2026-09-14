@@ -76,6 +76,8 @@ html {
 }
 
 body {
+  /* a horizontal drag on a card must never become the browser's back gesture */
+  overscroll-behavior-x: none;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);

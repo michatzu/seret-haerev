@@ -23,6 +23,7 @@ export interface Query {
   genres: string[];
   sort: SortKey;
   kids: boolean; // kids group expanded
+  small: boolean; // films with no artwork, grouped so they do not pock the list
   far: boolean; // "farther" group expanded
 }
 
@@ -60,7 +61,7 @@ export function parseQuery(sp: SP): Query {
   const genres = [...new Set(list(sp.g))];
   let sort = pick(one(sp.sort), SORTS, "dist");
   if (isMultiDay(day) && sort === "time") sort = "dist";
-  return { day, from, radius, halls, venues, genres, sort, kids: one(sp.kids) === "1", far: one(sp.far) === "1" };
+  return { day, from, radius, halls, venues, genres, sort, kids: one(sp.kids) === "1", small: one(sp.small) === "1", far: one(sp.far) === "1" };
 }
 
 /** Serialise a query back to search params, omitting defaults. */
@@ -74,6 +75,7 @@ export function queryToSearch(q: Query): string {
   if (q.genres.length) p.set("g", q.genres.join(","));
   if (q.sort !== "dist") p.set("sort", q.sort);
   if (q.kids) p.set("kids", "1");
+  if (q.small) p.set("small", "1");
   if (q.far) p.set("far", "1");
   const s = p.toString();
   return s ? `?${s}` : "";
@@ -180,7 +182,7 @@ export function passes(s: Screening, film: Film, venue: Venue, q: Query, dates: 
 /* ---- list assembly ---- */
 export interface VenueTimes { venue: Venue; distanceKm: number; screenings: Screening[] }
 export interface FilmRow { film: Film; venues: VenueTimes[]; nearestKm: number; nextAt: string; total: number; days: number[] }
-export interface ListResult { main: FilmRow[]; kids: FilmRow[]; farther: FilmRow[]; dates: string[] }
+export interface ListResult { main: FilmRow[]; kids: FilmRow[]; small: FilmRow[]; farther: FilmRow[]; dates: string[] }
 
 export function buildList(films: Map<string, Film>, venues: Map<string, Venue>, screenings: Screening[], q: Query, here: LatLng, now = new Date()): ListResult {
   const dates = new Set(datesFor(q.day, now));
@@ -210,16 +212,23 @@ export function buildList(films: Map<string, Film>, venues: Map<string, Venue>, 
     return { film, venues: vts, nearestKm: vts[0]?.distanceKm ?? Infinity, nextAt: all.map((s) => s.startsAt).sort()[0], total: all.length, days: [...new Set(all.map((s) => weekday(s.startsAt)))].sort() };
   };
 
-  const main: FilmRow[] = [], kids: FilmRow[] = [], farther: FilmRow[] = [];
+  const main: FilmRow[] = [], kids: FilmRow[] = [], small: FilmRow[] = [], farther: FilmRow[] = [];
   for (const a of acc.values()) {
-    if (a.near.size) (a.film.isKids ? kids : main).push(toRow(a.film, a.near));
-    else if (a.far.size) farther.push(toRow(a.film, a.far));
+    if (a.near.size) {
+      const row = toRow(a.film, a.near);
+      // no poster anywhere means a film too small for any catalogue: real, but it would leave a
+      // hole in a list that is mostly artwork, so these gather in their own group
+      if (a.film.isKids) kids.push(row);
+      else if (!a.film.posterUrl && !a.film.posterUrls?.length) small.push(row);
+      else main.push(row);
+    } else if (a.far.size) farther.push(toRow(a.film, a.far));
   }
   const cmp = sorter(q.sort);
   main.sort(cmp);
   kids.sort(cmp);
+  small.sort(cmp);
   farther.sort(sorter("dist"));
-  return { main, kids, farther, dates: [...dates] };
+  return { main, kids, small, farther, dates: [...dates] };
 }
 
 function sorter(sort: SortKey) {

@@ -21,7 +21,7 @@ export function FilmActions({ filmId, title, size = "card" }: { filmId: string; 
   const big = size === "page";
 
   return (
-    <div className={`flex items-stretch ${big ? "gap-2" : "gap-1.5"}`} style={{ opacity: ready ? 1 : 0.55 }}>
+    <div className={`flex w-full items-stretch ${big ? "gap-2" : "gap-1.5"}`} style={{ opacity: ready ? 1 : 0.55 }}>
       {ACTIONS.map(({ status, label, off, on }) => {
         const active = current === status;
         const Icon = active ? on : off;
@@ -32,7 +32,7 @@ export function FilmActions({ filmId, title, size = "card" }: { filmId: string; 
             aria-pressed={active}
             aria-label={`${label}: ${title}`}
             onClick={() => setStatus(filmId, status)}
-            className={`flex flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border text-[12px] font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border text-[12px] font-medium transition-colors ${
               big ? "h-11 text-[14px]" : "h-[34px]"
             } ${active ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent" : "border-line text-muted"}`}
           >
