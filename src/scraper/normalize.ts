@@ -178,6 +178,7 @@ function cleanTitle(t: string): string {
     .replace(/\s*-\s*מדובב(ת)?\s*$/u, " ")
     .replace(/\s*-\s*אנגלית\s*$/u, " ")
     .replace(/\s*\(\s*שלישי\s+זהב\s*\)\s*/gu, " ")            // a subscription label, not part of the name
+    .replace(/\s*\(\s*ללא\s+תשלום\s+למנויים\s*\)\s*/gu, " ")
     .replace(/\s*[-–—]\s*דיבוב\s+עברית?\s*$/u, " ")
     .replace(/\s*[-–—]\s*(סינמטק|מועדון)\s+ילדים\s*$/u, " ")
     .replace(/\s*[-–—]\s*אנגלית\s*$/u, " ")

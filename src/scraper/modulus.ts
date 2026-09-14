@@ -72,7 +72,7 @@ export async function scrapeHot(): Promise<AdapterResult> {
     const title = row.MovieName.replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
     const anyDubbed = row.Dates.some((d) => d.DubbedLanguage);
     const allPerformance = row.Dates.length > 0 && row.Dates.every((d) => d.IsPerformance);
-    films.push({ chain: "hot", sourceId: id, title, posterUrl: posters.get(row.MovieId), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: allPerformance || looksLikeEvent(title) });
+    films.push({ chain: "hot", sourceId: id, title, posterUrl: posters.get(row.MovieId), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: (allPerformance && !callsItselfAFilm(title)) || looksLikeEvent(title) });
     for (const d of row.Dates) {
       const venueId = `hot-${d.TheaterId}`;
       if (!VENUE_BY_ID.has(venueId)) continue;
@@ -180,6 +180,14 @@ function mlDubbedLang(d: MlDate): string | undefined {
 }
 
 const EVENT_WORDS = ["סטנדאפ", "הצגה", "הצגת", "מופע", "אופרה", "בלט", "קונצרט", "הופעה", "live", "הדרן", "אולטרה שואו", "מחווה", "שעת סיפור", "הרצאה", "סינמה נוסטלגיה", "טרום בכורה", "party"];
+/**
+ * Hot flags some documentaries as performances, which would hide them from the list. A title that
+ * calls itself a film overrides that flag.
+ */
+function callsItselfAFilm(title: string): boolean {
+  return /(^|\s)ה?סרט($|\s|\b)|סרט\s+תיעודי|דוקומנטרי/.test(title);
+}
+
 export function looksLikeEvent(title: string): boolean {
   const t = title.toLowerCase();
   return EVENT_WORDS.some((w) => t.includes(w));
