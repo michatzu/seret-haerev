@@ -57,3 +57,7 @@ export const Bookmark = (p: SVGProps<SVGSVGElement>) => (
 export const BookmarkFilled = (p: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" {...p}><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" /></svg>
 );
+
+export const ListIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M9 6.5h11M9 12h11M9 17.5h11" /><circle cx="4.6" cy="6.5" r="1.1" /><circle cx="4.6" cy="12" r="1.1" /><circle cx="4.6" cy="17.5" r="1.1" /></svg>
+);
