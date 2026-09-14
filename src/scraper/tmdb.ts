@@ -110,9 +110,16 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
       console.warn("imdb ratings:", err instanceof Error ? err.message : err);
     }
   }
+  // An average over a handful of votes is noise, not a rating: an 8-vote 9.4 would outrank
+  // The Lord of the Rings both on the card and in the IMDb sort.
+  const MIN_VOTES = 50;
   for (const film of films) {
     const e = cache[film.id];
-    if (e?.imdbRating) { film.imdbRating = e.imdbRating; film.imdbVotes = e.imdbVotes; rated++; }
+    if (e?.imdbRating && (e.imdbVotes ?? 0) >= MIN_VOTES) {
+      film.imdbRating = e.imdbRating;
+      film.imdbVotes = e.imdbVotes;
+      rated++;
+    }
   }
 
   await saveCache(cache);
