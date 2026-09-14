@@ -42,4 +42,3 @@ next-env.d.ts
 data/enrich-cache.json
 data/poster-cache.json
 data/imdb-ratings.tsv.gz
-data/geocode-cache.json
