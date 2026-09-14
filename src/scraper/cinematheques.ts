@@ -8,25 +8,30 @@ import { shortHash } from "@/lib/text";
 /* ---------------- Jerusalem (Drupal calendar, one page per day) ---------------- */
 const JLM_VENUE = "cinematheque-jlm";
 const JLM_ITEM =
-  /<span class="date-display-single"[^>]*content="([^"]+)"[^>]*>[\s\S]*?<button class="toptix-purchase"\s+data-url="([^"]+)"\s+data-event-id="(\d+)"[^>]*data-event-title="([^"]*)"/g;
+  /<span class="date-display-single"[^>]*content="([^"]+)"[^>]*>[\s\S]*?<button class="toptix-purchase"\s+data-url="([^"]+)"\s+data-event-id="(\d+)"[^>]*?data-event-node="(\d+)"[^>]*data-event-title="([^"]*)"/g;
 
 export async function scrapeJerusalemCinematheque(days = 8): Promise<AdapterResult> {
   const venue = VENUE_BY_ID.get(JLM_VENUE)!;
   const films = new Map<string, RawFilm>();
+  const titleToFilm = new Map<string, string>(); // the same film screens on several nodes
   const screenings: RawScreening[] = [];
   const dates = Array.from({ length: days }, (_, i) => ymdPlusDays(i));
   const results = await pool(dates, 3, async (date) => {
     const html = await getText(`https://jer-cin.org.il/he/article/4285?date=${date}`);
     for (const m of html.matchAll(JLM_ITEM)) {
-      const [, iso, url, eventId, rawTitle] = m;
+      const [, iso, url, eventId, nodeId, rawTitle] = m;
       const title = decode(rawTitle).trim();
       if (!title || !iso.startsWith(date)) continue;
-      const filmId = "jlm-" + shortHash(title.toLowerCase());
-      if (!films.has(filmId)) films.set(filmId, { chain: "cinematheque", sourceId: filmId, title });
+      // the node id is the film's own page, which is where its poster lives
+      const filmId = `jlm-node-${nodeId}`;
+      const byTitle = titleToFilm.get(title.toLowerCase());
+      const id = byTitle ?? filmId;
+      if (!byTitle) titleToFilm.set(title.toLowerCase(), filmId);
+      if (!films.has(id)) films.set(id, { chain: "cinematheque", sourceId: id, title });
       screenings.push({
         chain: "cinematheque",
         sourceId: `jlm-${eventId}`,
-        sourceFilmId: filmId,
+        sourceFilmId: id,
         venueId: JLM_VENUE,
         startsAt: iso.replace(/([+-]\d{2}:\d{2})$/, "$1"),
         attrs: [],

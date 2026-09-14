@@ -15,17 +15,44 @@ const FRESH_MS = 14 * 86_400_000;
 
 function pageUrl(chain: string, id: string, title: string): string | undefined {
   if (chain === "lev") return `https://www.lev.co.il/movies/${encodeURIComponent(id.replace(/\s+/g, "-"))}/`;
+  // Jerusalem's calendar carries no images; each film's node page does
+  if (chain === "cinematheque" && id.startsWith("jlm-node-")) return `https://jer-cin.org.il/he/node/${id.slice("jlm-node-".length)}`;
   void title;
   return undefined;
 }
 
+/** Images the page uses as chrome rather than as the film's poster. */
+const CHROME = /logo|icon|placeholder|banner|header|footer|sprite|avatar/i;
+
 function parse(chain: string, html: string): { url: string | null; synopsis: string | null } {
   if (chain === "lev") {
-    const imgs = [...html.matchAll(/https:\/\/www\.lev\.co\.il\/wp-content\/uploads\/[^"' )]+\.(?:jpe?g|png|webp)/gi)].map((m) => m[0]).filter((u) => !/logo|icon|placeholder/i.test(u));
+    // The first wp-content image on a Lev page is the site-wide header background, not the poster.
+    // The page's own JSON-LD names the real one as #mainImage; fall back to og:image, then to a
+    // file that calls itself a poster, then to any upload that is not used as a CSS background.
+    const ld = /#mainImage"\s*,\s*"url"\s*:\s*"([^"]+)"/.exec(html)?.[1];
+    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
+      ?? /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html)?.[1];
+    const backgrounds = new Set([...html.matchAll(/background[^;"']*:\s*url\(\s*['"]?([^)'"]+)/gi)].map((m) => m[1].trim()));
+    const uploads = [...html.matchAll(/https:\/\/www\.lev\.co\.il\/wp-content\/uploads\/[^"'\s)]+\.(?:jpe?g|png|webp)/gi)]
+      .map((m) => m[0])
+      .filter((u) => !CHROME.test(u) && !backgrounds.has(u));
+    const url = unescapeSlashes(ld) ?? unescapeSlashes(og) ?? uploads.find((u) => /poster/i.test(u)) ?? uploads[0] ?? null;
     const desc = /<meta\s+property="og:description"\s+content="([^"]*)"/i.exec(html)?.[1];
-    return { url: imgs[0] ?? null, synopsis: desc ? decode(desc) : null };
+    return { url, synopsis: desc ? decode(desc) : null };
+  }
+  if (chain === "cinematheque") {
+    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1];
+    const desc = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1];
+    return { url: og && !CHROME.test(og) ? decode(og) : null, synopsis: desc ? decode(desc) : null };
   }
   return { url: null, synopsis: null };
+}
+
+/** JSON-LD escapes every slash: "https:\/\/www.lev.co.il\/..." */
+function unescapeSlashes(u: string | undefined): string | null {
+  if (!u) return null;
+  const clean = decode(u.replace(/\\\//g, "/"));
+  return /^https?:\/\//.test(clean) && !CHROME.test(clean) ? clean : null;
 }
 
 export async function fillPosters(films: Film[]): Promise<{ posters: number; synopses: number }> {

@@ -20,7 +20,8 @@ function keyer(raws: RawFilm[]) {
     if (cyr.length && k.length >= 3) for (const c of cyr) cyrToKey.set(normalizeCyr(c), k);
   }
   return (f: RawFilm): string => {
-    let t = f.title.replace(/מדובב\s+ל(רוסית|עברית|אנגלית)/g, " ");
+    // group on the cleaned title, or a cinematheque's "– דיבוב עברי (שלישי זהב)" makes a new film
+    let t = cleanTitle(f.title);
     const cyr = t.match(CYRILLIC)?.map((s) => normalizeCyr(s)) ?? [];
     t = t.replace(CYRILLIC, " ");
     let k = normalizeTitle(t);
@@ -38,12 +39,17 @@ function looseKey(k: string): string {
     .join("")
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
+/**
+ * One edit apart, counting a swap of two adjacent letters as a single edit. Hebrew titles are
+ * transliterated by ear, so the same film arrives as both "\u05d4\u05d9\u05de\u05dc\u05d0\u05d9\u05d4" and "\u05d4\u05d9\u05de\u05d0\u05dc\u05d9\u05d4".
+ */
 function lev1(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0, j = 0, edits = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) { i++; j++; continue; }
     if (++edits > 1) return false;
+    if (a.length === b.length && a[i] === b[j + 1] && a[i + 1] === b[j]) { i += 2; j += 2; continue; } // transposition
     if (a.length > b.length) i++;
     else if (a.length < b.length) j++;
     else { i++; j++; }
@@ -135,7 +141,8 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
     const isIsraeli = arr.some((f) => f.isIsraeli) || (pick("language") === "he" && dubbedShare < 0.5);
     const genreKeys = canonicalGenres(rawGenres, isIsraeli);
     const genres = genreKeys.filter((k) => k !== "israeli").map(genreLabel);
-    const isKids = dubbedShare >= 0.5 || rawGenres.some((g) => KIDS_GENRES.includes(g)) || arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title));
+    const dubbedLabel = arr.some((f) => /דיבוב\s+עברי|מדובב\s+לעברית|\(\s*מדובב(ת)?\s*\)/.test(f.title));
+    const isKids = dubbedShare >= 0.5 || dubbedLabel || rawGenres.some((g) => KIDS_GENRES.includes(g)) || arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title));
     films.push({
       id,
       title,
@@ -170,6 +177,10 @@ function cleanTitle(t: string): string {
     .replace(/\(\s*מדובב(ת)?\s*\)/g, " ")
     .replace(/\s*-\s*מדובב(ת)?\s*$/u, " ")
     .replace(/\s*-\s*אנגלית\s*$/u, " ")
+    .replace(/\s*\(\s*שלישי\s+זהב\s*\)\s*/gu, " ")            // a subscription label, not part of the name
+    .replace(/\s*[-–—]\s*דיבוב\s+עברית?\s*$/u, " ")
+    .replace(/\s*[-–—]\s*(סינמטק|מועדון)\s+ילדים\s*$/u, " ")
+    .replace(/\s*[-–—]\s*אנגלית\s*$/u, " ")
     .replace(/^g\s*kids\s*-\s*/i, "")
     .replace(/^movieretro-?\s*/i, "")
     .replace(/\s*-\s*infinity vision\s*$/i, "")
