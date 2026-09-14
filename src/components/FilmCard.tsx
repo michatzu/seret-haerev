@@ -4,7 +4,7 @@ import { WatchedButton } from "./WatchedButton";
 import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
-import { formatDaySet, languageName, screeningsCount, venuesCount } from "@/lib/format";
+import { formatDaySet, formatDateSet, languageName, screeningsCount, venuesCount, withinTheWeek } from "@/lib/format";
 import { isMultiDay, pickTimes, weekday, type FilmRow, type Query } from "@/lib/query";
 import type { Screening } from "@/lib/types";
 
@@ -83,9 +83,20 @@ function DayPills({ ss }: { ss: Screening[] }) {
 }
 
 /** Week: which days, plus a tag when every screening at that venue shares it. */
+/**
+ * Over a week a weekday letter is enough; past that it is ambiguous, so anything beyond the coming
+ * seven days is shown as a date instead.
+ */
 function WeekPills({ ss }: { ss: Screening[] }) {
-  const days = ss.map((s) => weekday(s.startsAt));
   const tags = new Set(ss.map(screeningTag));
   const tag = tags.size === 1 ? [...tags][0] : undefined;
-  return <TimePill label={formatDaySet(days)} tag={tag} />;
+  const soon = ss.filter((s) => withinTheWeek(s.startsAt));
+  const later = ss.filter((s) => !withinTheWeek(s.startsAt));
+  if (!later.length) return <TimePill label={formatDaySet(soon.map((s) => weekday(s.startsAt)))} tag={tag} />;
+  return (
+    <>
+      {soon.length > 0 && <TimePill label={formatDaySet(soon.map((s) => weekday(s.startsAt)))} />}
+      <TimePill label={formatDateSet(later.map((s) => s.startsAt))} tag={tag} />
+    </>
+  );
 }

@@ -28,15 +28,15 @@ jobs:
           git fetch origin data:data 2>/dev/null || true
           git show data:enrich-cache.json > data/enrich-cache.json 2>/dev/null || true
           git show data:poster-cache.json > data/poster-cache.json 2>/dev/null || true
+          git show data:geocode-cache.json > data/geocode-cache.json 2>/dev/null || true
       - name: Scrape
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
         run: npm run scrape
       - name: Publish snapshot to the data branch (single commit, no history)
         run: |
           set -e
-          mkdir -p /tmp/data && cp data/snapshot.json data/enrich-cache.json data/poster-cache.json /tmp/data/ 2>/dev/null || cp data/snapshot.json /tmp/data/
+          mkdir -p /tmp/data && cp data/snapshot.json data/enrich-cache.json data/poster-cache.json data/geocode-cache.json /tmp/data/ 2>/dev/null || cp data/snapshot.json /tmp/data/
           cd /tmp/data
           git init -q -b data
           git config user.name "seret-haerev bot"

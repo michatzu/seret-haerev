@@ -11,7 +11,7 @@ import { distanceKm, formatDistance } from "@/lib/geo";
 import { venueOptions } from "@/lib/options";
 import { RADIUS_KM, datesFor, isMultiDay, parseQuery, passes, queryToSearch } from "@/lib/query";
 import { ymdInIsrael } from "@/lib/tz";
-import { dayName, formatTime } from "@/lib/format";
+import { dayOrDate, formatTime } from "@/lib/format";
 import type { Screening } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -103,7 +103,7 @@ function WeekVenue({ v }: { v: { venue: { id: string; name: string }; distanceKm
       <div className="flex flex-col gap-2">
         {[...byDay.entries()].map(([day, ss]) => (
           <div key={day} className="flex items-center gap-2.5">
-            <span className="w-[44px] shrink-0 text-[12px] font-medium text-muted">{dayName(ss[0].startsAt)}</span>
+            <span className="w-[52px] shrink-0 text-[12px] font-medium text-muted">{dayOrDate(ss[0].startsAt)}</span>
             <div className="flex flex-wrap gap-2">
               {ss.slice(0, 4).map((s) => (
                 <a key={s.id} href={s.bookingUrl} target="_blank" rel="noopener noreferrer" className="tabular inline-flex h-[38px] items-center rounded-md bg-pill-bg px-3 text-[15px] font-semibold text-pill-ink">{formatTime(s.startsAt)}</a>

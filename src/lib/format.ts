@@ -1,4 +1,4 @@
-import { TZ } from "./tz";
+import { TZ, ymdInIsrael } from "./tz";
 
 const timeFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
 export function formatTime(iso: string): string {
@@ -18,6 +18,32 @@ export function dayLetter(iso: string | Date): string {
 }
 export function dayName(iso: string | Date): string {
   return DAY_NAMES[weekdayIndex(iso)];
+}
+
+/** True while the instant is close enough that a weekday name still identifies it on its own. */
+export function withinTheWeek(iso: string | Date, now = Date.now()): boolean {
+  const t = typeof iso === "string" ? Date.parse(iso) : iso.getTime();
+  return t < now + 7 * 864e5;
+}
+
+/** "3.10", and for a run of days "3.10\u20137.10". Used once a weekday alone would be ambiguous. */
+export function formatDateSet(isos: (string | Date)[]): string {
+  const dates = [...new Set(isos.map((i) => ymdInIsrael(typeof i === "string" ? new Date(i) : i)))].sort();
+  const label = (ymd: string) => {
+    const [, m, d] = ymd.split("-").map(Number);
+    return `${d}.${m}`;
+  };
+  if (!dates.length) return "";
+  if (dates.length === 1) return label(dates[0]);
+  const consecutive = dates.every((d, i) => i === 0 || Date.parse(d) - Date.parse(dates[i - 1]) === 864e5);
+  if (consecutive && dates.length >= 3) return `${label(dates[0])}\u2013${label(dates[dates.length - 1])}`;
+  if (dates.length === 2) return `${label(dates[0])}, ${label(dates[1])}`;
+  return `${label(dates[0])} +${dates.length - 1}`;
+}
+
+/** A single screening's day: the weekday while that is unambiguous, otherwise the date. */
+export function dayOrDate(iso: string | Date, now = Date.now()): string {
+  return withinTheWeek(iso, now) ? dayName(iso) : formatDateSet([iso]);
 }
 
 /** Compact list of weekdays: [0,1,2,3,4] -> "א׳–ה׳", [0,2,6] -> "א׳ ג׳ ש׳", all seven -> "כל יום". */
