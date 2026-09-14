@@ -16,6 +16,7 @@ import { getText } from "./http";
 import { zonedToIso } from "@/lib/tz";
 import { shortHash } from "@/lib/text";
 import { geocode, saveGeocodeCache } from "./geocode";
+import { scrapeFestivals } from "./festivals";
 
 const CHAIN = "other" as const;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -328,7 +329,11 @@ export async function scrapePopup(): Promise<AdapterResult> {
   for (const r of [muni, stlv]) {
     if (r.status === "rejected") console.warn("  popup source failed:", r.reason instanceof Error ? r.reason.message : r.reason);
   }
-  const parts = [muni, stlv].filter((r) => r.status === "fulfilled").map((r) => r.value);
+  const fests = await scrapeFestivals().catch((e) => {
+    console.warn("  festivals failed:", e instanceof Error ? e.message : e);
+    return { venues: [], films: [], screenings: [] };
+  });
+  const parts = [...[muni, stlv].filter((r) => r.status === "fulfilled").map((r) => r.value), fests];
 
   const venues = new Map<string, Venue>();
   const films = new Map<string, RawFilm>();
