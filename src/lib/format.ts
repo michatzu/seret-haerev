@@ -42,3 +42,7 @@ export function languageName(code?: string): string | undefined {
 export function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : `${n} ${many}`;
 }
+
+/** Hebrew counts: "בית קולנוע אחד" for one, "3 בתי קולנוע" for the rest. */
+export const venuesCount = (n: number) => (n === 1 ? "בית קולנוע אחד" : `${n} בתי קולנוע`);
+export const screeningsCount = (n: number) => (n === 1 ? "הקרנה אחת" : `${n} הקרנות`);

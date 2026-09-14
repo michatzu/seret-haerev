@@ -1,5 +1,7 @@
 "use client";
 
+import { screeningsCount } from "@/lib/format";
+
 import { useState } from "react";
 import { TimePill } from "../TimePill";
 import type { Screening } from "@/lib/types";
@@ -19,7 +21,7 @@ export function HallRow({ label, screenings }: { label: string; screenings: Scre
           <TimePill key={s.id} s={s} big tag={s.dubbedLang === "ru" ? "רוסית" : s.dubbedLang === "en" ? "אנגלית" : s.attrs.includes("dubbed") ? "מדובב" : s.attrs.includes("3d") && label !== "3D" ? "3D" : undefined} />
         ))}
         {rest > 0 && (
-          <button type="button" onClick={() => setOpen(true)} className="inline-flex h-[38px] items-center rounded-md bg-plus-bg px-2.5 text-[14px] font-medium text-plus-ink" aria-label={`עוד ${rest} הקרנות`}>
+          <button type="button" onClick={() => setOpen(true)} className="inline-flex h-[38px] items-center rounded-md bg-plus-bg px-2.5 text-[14px] font-medium text-plus-ink" aria-label={`עוד ${screeningsCount(rest)}`}>
             +{rest}
           </button>
         )}

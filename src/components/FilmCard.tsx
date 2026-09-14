@@ -3,7 +3,7 @@ import { Poster, hasPoster } from "./Poster";
 import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
-import { formatDaySet, languageName } from "@/lib/format";
+import { formatDaySet, languageName, screeningsCount, venuesCount } from "@/lib/format";
 import { isMultiDay, pickTimes, weekday, type FilmRow, type Query } from "@/lib/query";
 import type { Screening } from "@/lib/types";
 
@@ -26,9 +26,9 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
   const restVenues = row.venues.length - shown.length;
   const more =
     isMultiDay(q.day)
-      ? restVenues > 0 ? `עוד ${restVenues} בתי קולנוע` : undefined
+      ? restVenues > 0 ? `עוד ${venuesCount(restVenues)}` : undefined
       : restScreenings > 0
-        ? `עוד ${restScreenings} הקרנות${restVenues > 0 ? ` ב־${restVenues} בתי קולנוע` : ""}`
+        ? `עוד ${screeningsCount(restScreenings)}${restVenues > 0 ? ` ב־${venuesCount(restVenues)}` : ""}`
         : undefined;
   const href = `/film/${row.film.id}${search}`;
 
