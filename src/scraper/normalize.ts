@@ -178,3 +178,54 @@ function cleanTitle(t: string): string {
     .replace(/^[\s\-–—:]+|[\s\-–—:]+$/g, "")
     .trim();
 }
+
+/**
+ * Second merge pass, once TMDB has spoken. Chains spell the same film differently enough that the
+ * title-based grouping keeps them apart ("קיוטי נגד אקמי" vs "לוני טונס מציגים: קיוטי נגד אקמי –
+ * דיבוב עברי"), which shows the film five times in the list. Films that matched the same TMDB
+ * entry are the same film, so they collapse into one and their screenings follow.
+ */
+export function mergeByTmdbId(snapshot: Snapshot): number {
+  const groups = new Map<number, Film[]>();
+  for (const f of snapshot.films) {
+    if (!f.tmdbId) continue;
+    const g = groups.get(f.tmdbId);
+    if (g) g.push(f);
+    else groups.set(f.tmdbId, [f]);
+  }
+
+  const remap = new Map<string, string>();
+  const dropped = new Set<string>();
+  let merged = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    // the cleanest title wins: fewest words, then shortest
+    const keep = [...group].sort((a, b) => a.title.split(/\s+/).length - b.title.split(/\s+/).length || a.title.length - b.title.length)[0];
+    for (const f of group) {
+      if (f === keep) continue;
+      remap.set(f.id, keep.id);
+      dropped.add(f.id);
+      merged++;
+      keep.sources = [...keep.sources, ...f.sources];
+      keep.posterUrls = [...new Set([...(keep.posterUrls ?? []), ...(f.posterUrls ?? []), f.posterUrl].filter((u): u is string => !!u))];
+      keep.posterUrl ??= f.posterUrl;
+      keep.synopsis ??= f.synopsis;
+      keep.runtime ??= f.runtime;
+      keep.director ??= f.director;
+      keep.trailerUrl ??= f.trailerUrl;
+      keep.ageRating ??= f.ageRating;
+      if (!keep.cast?.length && f.cast?.length) keep.cast = f.cast;
+      if (!keep.genreKeys.length && f.genreKeys.length) { keep.genreKeys = f.genreKeys; keep.genres = f.genres; }
+      keep.isKids ||= f.isKids;
+      keep.isIsraeli ||= f.isIsraeli;
+      keep.isEvent &&= f.isEvent;
+    }
+  }
+  if (!merged) return 0;
+  for (const s of snapshot.screenings) {
+    const to = remap.get(s.filmId);
+    if (to) s.filmId = to;
+  }
+  snapshot.films = snapshot.films.filter((f) => !dropped.has(f.id));
+  return merged;
+}

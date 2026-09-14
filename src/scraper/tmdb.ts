@@ -143,10 +143,37 @@ async function findTmdbId(key: string, film: Film): Promise<number | undefined> 
     // prefer recent releases (we list current screenings) and the closest year
     const now = new Date().getFullYear();
     hits.sort((a, b) => score(b, film.year, now) - score(a, film.year, now));
-    return hits[0].id;
+    // TMDB matches loosely on alternative titles, which once turned "\u05d4\u05de\u05e9\u05d7\u05e7" into Avengers:
+    // Endgame ("\u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"). Require the winner to actually resemble what we asked for.
+    const best = hits.find((h) => titlesAgree(q, h.title) || titlesAgree(q, h.original_title));
+    if (best) return best.id;
   }
   return undefined;
 }
+/** Loose title comparison: same words, ignoring order, punctuation and a leading Hebrew "\u05d4". */
+function titleTokens(t: string): Set<string> {
+  return new Set(
+    t.toLowerCase()
+      .replace(/[\u0591-\u05c7]/g, "")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(" ")
+      .filter((w) => w.length > 1)
+      .map((w) => w.replace(/^\u05d4(?=.{2})/, "")),
+  );
+}
+/** True when one title's words are largely contained in the other's. */
+function titlesAgree(a: string, b: string): boolean {
+  const A = titleTokens(a), B = titleTokens(b);
+  if (!A.size || !B.size) return false;
+  const [small, big] = A.size <= B.size ? [A, B] : [B, A];
+  let shared = 0;
+  for (const w of small) if (big.has(w)) shared++;
+  if (shared / small.size < 0.7) return false;
+  // a single common word inside a much longer title is a coincidence, not a match:
+  // "\u05d4\u05de\u05e9\u05d7\u05e7" is not "\u05d4\u05e0\u05d5\u05e7\u05de\u05d9\u05dd: \u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"
+  return small.size >= 2 || big.size <= 2;
+}
+
 function score(h: SearchHit, year: number | undefined, now: number): number {
   const y = h.release_date ? Number(h.release_date.slice(0, 4)) : undefined;
   let s = Math.log10(1 + h.popularity) * 2;
