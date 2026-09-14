@@ -39,9 +39,12 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
         <Poster filmId={row.film.id} hasPoster={hasPoster(row.film)} alt="" width={56} height={84} />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-[3px]">
-          <Link href={href} className="font-serif text-[19px] font-bold leading-[1.2] text-ink">{row.film.title}</Link>
-          <div className="text-[12px] text-muted">{subLine(row.film)}</div>
+        <div className="flex items-start gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+            <Link href={href} className="font-serif text-[19px] font-bold leading-[1.2] text-ink">{row.film.title}</Link>
+            <div className="text-[12px] text-muted">{subLine(row.film)}</div>
+          </div>
+          <WatchedButton filmId={row.film.id} title={row.film.title} />
         </div>
         <div className="flex flex-col gap-1.5">
           {shown.map((v) => (
@@ -54,15 +57,12 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-between gap-2">
-          {more ? (
-            <Link href={href} className="flex min-h-[28px] items-center gap-1 text-[13px] font-medium text-accent">
-              <span>{more}</span>
-              <ChevronBack width={16} height={16} />
-            </Link>
-          ) : <span />}
-          <WatchedButton filmId={row.film.id} title={row.film.title} />
-        </div>
+        {more && (
+          <Link href={href} className="flex min-h-[24px] items-center gap-1 text-[13px] font-medium text-accent">
+            <span>{more}</span>
+            <ChevronBack width={16} height={16} />
+          </Link>
+        )}
       </div>
     </article>
   );

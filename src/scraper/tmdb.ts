@@ -201,7 +201,9 @@ async function fetchDetails(key: string, id: number): Promise<Enrichment> {
   const en = needEn ? await getJson<Details>(`${TMDB}/movie/${id}?api_key=${key}&language=en-US&append_to_response=videos`).catch(() => undefined) : undefined;
   const video = [...(he.videos?.results ?? []), ...(en?.videos?.results ?? [])].filter((v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"));
   video.sort((a, b) => Number(b.type === "Trailer") - Number(a.type === "Trailer") || Number(b.official ?? false) - Number(a.official ?? false));
-  const country = he.production_countries?.[0]?.iso_3166_1 ?? he.origin_country?.[0];
+  // origin_country is where the film is from; production_countries lists every co-producer, and its
+  // first entry is arbitrary (Sentimental Value, a Norwegian film, starts with Turkey there)
+  const country = he.origin_country?.[0] ?? he.production_countries?.[0]?.iso_3166_1;
   const director = he.credits?.crew?.filter((c) => c.job === "Director").map((c) => c.name).join(", ") || undefined;
   return {
     tmdbId: he.id,

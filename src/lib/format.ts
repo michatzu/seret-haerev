@@ -33,10 +33,25 @@ export function formatDaySet(days: number[]): string {
 const LANG_NAMES: Record<string, string> = {
   en: "אנגלית", he: "עברית", fr: "צרפתית", de: "גרמנית", it: "איטלקית", es: "ספרדית", ru: "רוסית", ar: "ערבית",
   ja: "יפנית", ko: "קוריאנית", zh: "סינית", pt: "פורטוגזית", sv: "שוודית", da: "דנית", no: "נורווגית", fi: "פינית",
-  pl: "פולנית", tr: "טורקית", hi: "הינדי", nl: "הולנדית", el: "יוונית", cs: "צ׳כית", hu: "הונגרית", uk: "אוקראינית", fa: "פרסית",
+  pl: "פולנית", tr: "טורקית", hi: "הינדי", nl: "הולנדית", el: "יוונית", cs: "צ׳כית", hu: "הונגרית", uk: "אוקראינית", fa: "פרסית", nn: "נורווגית", nb: "נורווגית", is: "איסלנדית", ka: "גאורגית", am: "אמהרית", ro: "רומנית", th: "תאית", yi: "יידיש", ca: "קטלאנית", sr: "סרבית", hr: "קרואטית", bg: "בולגרית",
 };
+/**
+ * The language of a film, in Hebrew. The value can arrive either as an ISO code (from TMDB and the
+ * chains) or already as a Hebrew word (the Haifa festival prints "102 \u05d3\u05e7\u05f3, \u05d9\u05d5\u05d5\u05e0\u05d9\u05ea" in its listing),
+ * so both are accepted. Codes outside the table fall back to the browser's own language names.
+ */
 export function languageName(code?: string): string | undefined {
-  return code ? LANG_NAMES[code] ?? undefined : undefined;
+  const v = code?.trim();
+  if (!v) return undefined;
+  if (!/^[a-z]{2,3}(-[a-z]+)?$/i.test(v)) return v; // already a name
+  const key = v.toLowerCase().split("-")[0];
+  if (LANG_NAMES[key]) return LANG_NAMES[key];
+  try {
+    const name = new Intl.DisplayNames(["he"], { type: "language" }).of(key);
+    return name && name.toLowerCase() !== key ? name : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function plural(n: number, one: string, many: string): string {

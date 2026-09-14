@@ -18,12 +18,12 @@ export function WatchedButton({ filmId, title, variant = "card" }: { filmId: str
       </button>
     );
   }
+  // a corner control: the icon carries it, the words would crowd the title
   return (
-    <button type="button" aria-label={label} aria-pressed={on} onClick={() => toggleWatched(filmId)}
-      className="flex min-h-[28px] shrink-0 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-muted"
+    <button type="button" aria-label={label} aria-pressed={on} onClick={() => toggleWatched(filmId)} title="צפיתי"
+      className={`-me-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${on ? "text-accent" : "text-muted"}`}
       style={{ opacity: ready ? 1 : 0 }}>
-      <Eye width={14} height={14} />
-      <span>צפיתי</span>
+      {on ? <Check width={18} height={18} /> : <Eye width={18} height={18} />}
     </button>
   );
 }
