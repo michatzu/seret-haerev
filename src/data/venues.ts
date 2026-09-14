@@ -48,6 +48,9 @@ export const VENUES: Venue[] = [
   { id: "cinematheque-jlm", chain: "cinematheque", name: "סינמטק ירושלים", city: "ירושלים", address: "דרך חברון 11", lat: 31.7712, lng: 35.2255, kind: "cinematheque", url: "https://jer-cin.org.il" },
   { id: "cinematheque-ta", chain: "cinematheque", name: "סינמטק תל אביב", city: "תל אביב", address: "שפרינצק 2", lat: 32.0672, lng: 34.7832, kind: "cinematheque", url: "https://www.cinema.co.il" },
   { id: "cinematheque-haifa", chain: "cinematheque", name: "סינמטק חיפה", city: "חיפה", address: "שדרות הנשיא 142", lat: 32.8073, lng: 34.9866, kind: "cinematheque", url: "https://www.haifacin.co.il" },
+  { id: "cinematheque-holon", chain: "cinematheque", name: "סינמטק חולון", city: "חולון", address: "גולדה מאיר 6, המדיטק", lat: 32.011815, lng: 34.777437, kind: "cinematheque", url: "https://www.cinemaholon.org.il" },
+  { id: "cinematheque-herzliya", chain: "cinematheque", name: "סינמטק הרצליה", city: "הרצליה", address: "הראשונים 7", lat: 32.167759, lng: 34.841750, kind: "cinematheque", url: "https://www.hcinema.org.il" },
+  { id: "cinematheque-sderot", chain: "cinematheque", name: "סינמטק שדרות", city: "שדרות", address: "מנחם בגין, אזור התעשייה", lat: 31.524284, lng: 34.596635, kind: "cinematheque", url: "https://www.sderot-cin.org.il" },
   // ---- Lev ----
   { id: "lev-tlv", chain: "lev", name: "לב דיזנגוף", city: "תל אביב", address: "דיזנגוף 50, דיזנגוף סנטר", lat: 32.0753, lng: 34.7751, kind: "boutique" },
   { id: "lev-daniel", chain: "lev", name: "לב דניאל", city: "הרצליה", address: "מלון דניאל, הרצליה פיתוח", lat: 32.173, lng: 34.799, kind: "boutique" },
