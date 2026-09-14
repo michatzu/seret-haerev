@@ -42,7 +42,7 @@ export default async function Home(props: PageProps<"/">) {
         </div>
 
         <p className="flex flex-wrap justify-center gap-x-2 pt-4 text-center text-[12px] text-muted">
-          <span>עודכן {formatTime(data.snapshot.generatedAt)}</span>
+          <span>הלוחות עודכנו ב-{formatTime(data.snapshot.generatedAt)}</span>
           <span>·</span>
           <span>לחיצה על שעה פותחת את הקופה של בית הקולנוע</span>
           <span>·</span>

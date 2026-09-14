@@ -19,6 +19,7 @@ function pageUrl(chain: string, id: string, title: string): string | undefined {
   if (chain === "cinematheque" && id.startsWith("jlm-node-")) return `https://jer-cin.org.il/he/node/${id.slice("jlm-node-".length)}`;
   // the Haifa festival's schedule carries no images either; its film pages do
   if (chain === "other" && id.startsWith("haifa-film-")) return `https://www.haifaff.co.il/%D7%A1%D7%A8%D7%98%D7%99%D7%9D/${id.slice("haifa-film-".length)}/x`;
+  if (chain === "cinematheque" && id.startsWith("sderot-movie-")) return `https://www.sderot-cin.org.il/movie/${id.slice("sderot-movie-".length)}`;
   void title;
   return undefined;
 }
@@ -43,7 +44,9 @@ function parse(chain: string, html: string): { url: string | null; synopsis: str
     return { url, synopsis: desc ? decode(desc) : null };
   }
   if (chain === "cinematheque" || chain === "other") {
-    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1];
+    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
+      // Sderot publishes no og:image; its film still is the one rendered at the "main_movie" size
+      ?? /src="(\/sites\/default\/files\/styles\/main_movie\/[^"]+)"/i.exec(html)?.[1]?.replace(/^\//, "https://www.sderot-cin.org.il/").replace(/&amp;/g, "&");
     const desc = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1];
     return { url: og && !CHROME.test(og) ? decode(og) : null, synopsis: desc ? decode(desc) : null };
   }

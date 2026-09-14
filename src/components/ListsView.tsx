@@ -10,9 +10,9 @@ import { languageName } from "@/lib/format";
 interface Row { id: string; title: string; year?: number; language?: string; imdbRating?: number; hasPoster: boolean; screenings: number }
 
 const EMPTY_TEXT: Record<FilmStatus, string> = {
-  want: "החלקה ימינה על סרט ברשימה, או סימון הסימנייה, תשמור אותו כאן.",
-  watched: "סימון סרט כ״צפיתי״ מסיר אותו מהרשימה ושומר אותו כאן.",
-  skip: "החלקה שמאלה על סרט ברשימה תסתיר אותו ותשמור אותו כאן.",
+  want: "כאן יישמרו הסרטים שסימנתם ״רוצה״. בנייד אפשר גם להחליק כרטיס ימינה.",
+  watched: "כאן יישמרו הסרטים שכבר ראיתם, והם לא יופיעו שוב ברשימה.",
+  skip: "כאן יישמרו הסרטים שסימנתם ״לא מעניין״. בנייד אפשר גם להחליק כרטיס שמאלה.",
 };
 
 export function ListsView() {

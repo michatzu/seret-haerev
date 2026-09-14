@@ -27,7 +27,7 @@ export function LocationButton({ label, source }: { label: string; source: "cook
 
   /** Asks the device for its position (this is what triggers the browser's permission prompt). */
   const locate = () => {
-    if (!("geolocation" in navigator)) return setError("הדפדפן לא מאפשר מיקום");
+    if (!("geolocation" in navigator)) return setError("הדפדפן הזה לא תומך באיתור מיקום");
     setBusy(true);
     setError(null);
     navigator.geolocation.getCurrentPosition(
@@ -37,7 +37,7 @@ export function LocationButton({ label, source }: { label: string; source: "cook
       },
       (err) => {
         setBusy(false);
-        setError(err.code === err.PERMISSION_DENIED ? "לא ניתנה הרשאת מיקום. אפשר לאשר בהגדרות הדפדפן, או לבחור עיר." : "לא הצלחנו לאתר את המיקום. אפשר לבחור עיר.");
+        setError(err.code === err.PERMISSION_DENIED ? "לא ניתנה הרשאת מיקום. אפשר לאשר אותה בהגדרות הדפדפן, או פשוט לבחור עיר מהרשימה." : "לא הצלחנו לאתר את המיקום. אפשר לבחור עיר מהרשימה.");
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
     );
@@ -55,7 +55,7 @@ export function LocationButton({ label, source }: { label: string; source: "cook
       <BottomSheet open={open} onClose={close} title={source === "cookie" ? "מיקום" : `מיקום · כרגע ${label}, לפי חיבור האינטרנט`}>
         <button type="button" onClick={locate} disabled={busy} className={`flex min-h-[50px] w-full items-center gap-2 px-0.5 text-start text-[16px] font-medium ${precise ? "text-ink" : "text-accent"}`}>
           <Locate width={18} height={18} />
-          <span>{busy ? "מאתר…" : "המיקום המדויק שלי"}</span>
+          <span>{busy ? "מאתר את המיקום…" : "המיקום המדויק שלי"}</span>
         </button>
         {error && <div className="px-0.5 pb-2 text-[13px] text-muted">{error}</div>}
         {CITIES.map((c) => (

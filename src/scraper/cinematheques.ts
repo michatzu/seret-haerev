@@ -4,6 +4,7 @@ import { VENUE_BY_ID } from "@/data/venues";
 import { localIsoToIso, ymdPlusDays } from "@/lib/tz";
 import { getText, pool } from "./http";
 import { shortHash } from "@/lib/text";
+import { looksLikeEvent } from "./modulus";
 
 /* ---------------- Jerusalem (Drupal calendar, one page per day) ---------------- */
 const JLM_VENUE = "cinematheque-jlm";
@@ -27,7 +28,7 @@ export async function scrapeJerusalemCinematheque(days = 8): Promise<AdapterResu
       const byTitle = titleToFilm.get(title.toLowerCase());
       const id = byTitle ?? filmId;
       if (!byTitle) titleToFilm.set(title.toLowerCase(), filmId);
-      if (!films.has(id)) films.set(id, { chain: "cinematheque", sourceId: id, title });
+      if (!films.has(id)) films.set(id, { chain: "cinematheque", sourceId: id, title, isEvent: looksLikeEvent(title) });
       screenings.push({
         chain: "cinematheque",
         sourceId: `jlm-${eventId}`,
@@ -255,7 +256,7 @@ export async function scrapeHerzliyaCinematheque(days = 45): Promise<AdapterResu
     const title = raw.replace(/\s*\+\s*(הרצאה|מפגש|פאנל|שיח).*$/, "").replace(/^(טרום בכורה|בכורה)\s*:\s*/, "").trim();
     if (!title) continue;
     const filmId = `herz-${shortHash(title.toLowerCase())}`;
-    if (!films.has(filmId)) films.set(filmId, { chain: "cinematheque", sourceId: filmId, title, isEvent: /ערב זיכרון|טקס|הרצאה בלבד/.test(raw) });
+    if (!films.has(filmId)) films.set(filmId, { chain: "cinematheque", sourceId: filmId, title, isEvent: /ערב זיכרון/.test(raw) || looksLikeEvent(raw) });
     screenings.push({ chain: "cinematheque", sourceId: `herz-${post.id}`, sourceFilmId: filmId, venueId: HERZ_VENUE, startsAt, attrs: [], bookingUrl: post.link || "https://www.hcinema.org.il" });
   }
   return { chain: "cinematheque", venues: [venue], films: [...films.values()], screenings };
@@ -300,7 +301,9 @@ export async function scrapeSderotCinematheque(days = 30): Promise<AdapterResult
     let title = full.split("|")[0].trim() || full; // "עברית | English" -> Hebrew
     title = title.replace(/\s+[-–—]\s+(לרגל|חוגגים|הקרנה חגיגית|במסגרת)[\sל].*$/u, "").trim();
     if (!title) continue;
-    const filmId = `sderot-${shortHash(title.toLowerCase())}`;
+    // the row links to the film's own page, which is the only place its still lives
+    const movieId = /href="\/movie\/(\d+)"/.exec(row)?.[1];
+    const filmId = movieId ? `sderot-movie-${movieId}` : `sderot-${shortHash(title.toLowerCase())}`;
     if (!films.has(filmId)) {
       const original = full.includes("|") ? full.split("|").slice(1).join("|").trim() : undefined;
       films.set(filmId, { chain: "cinematheque", sourceId: filmId, title, originalTitle: original && /[A-Za-z]/.test(original) ? original : undefined });

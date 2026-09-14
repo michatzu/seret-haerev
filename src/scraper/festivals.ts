@@ -10,6 +10,7 @@ import type { AdapterResult, RawFilm, RawScreening, Venue } from "@/lib/types";
 import { getText } from "./http";
 import { zonedToIso } from "@/lib/tz";
 import { shortHash } from "@/lib/text";
+import { looksLikeEvent } from "./modulus";
 
 const CHAIN = "other" as const;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -107,7 +108,7 @@ export async function scrapeHaifaFestival(): Promise<AdapterResult> {
         // the festival's own film id when it published one, so its page (and poster) can be found
         const filmId = pageId ? `haifa-film-${pageId}` : `fest-haifa-${shortHash(title.toLowerCase())}`;
         if (!films.has(filmId)) {
-          films.set(filmId, { chain: CHAIN, sourceId: filmId, title, runtime, language, director: director || undefined, isEvent: false });
+          films.set(filmId, { chain: CHAIN, sourceId: filmId, title, runtime, language, director: director || undefined, isEvent: looksLikeEvent(title) });
         }
         screenings.push({
           chain: CHAIN,

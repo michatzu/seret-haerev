@@ -91,8 +91,8 @@ export function dayLabel(day: DayKey, now = new Date()): string {
     case "d3": return wdFmt.format(new Date(now.getTime() + 3 * 864e5));
   }
 }
-export const FROM_LABELS: Record<FromKey, string> = { now: "מעכשיו", noon: "צהריים", evening: "ערב", night: "לילה", all: "כל היום" };
-export const RADIUS_LABELS: Record<RadiusKey, string> = { "5": "עד 5 ק״מ", "15": "עד 15 ק״מ", "30": "עד 30 ק״מ", all: "כל הארץ" };
+export const FROM_LABELS: Record<FromKey, string> = { now: "מעכשיו", noon: "בצהריים", evening: "בערב", night: "בלילה", all: "בכל שעה" };
+export const RADIUS_LABELS: Record<RadiusKey, string> = { "5": "עד 5 ק״מ", "15": "עד 15 ק״מ", "30": "עד 30 ק״מ", all: "בכל הארץ" };
 export const HALL_LABELS: Record<HallKey, string> = { imax: "IMAX", vip: "VIP", "4dx": "4DX", screenx: "ScreenX", "3d": "3D", cinematheque: "סינמטק", outdoor: "חוץ" };
 export function hallsLabel(halls: HallKey[]): string {
   if (!halls.length) return "כל האולמות";
