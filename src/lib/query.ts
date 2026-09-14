@@ -27,7 +27,9 @@ export interface Query {
 }
 
 /** More than one day: the list groups by day and cannot sort by clock time. */
-export const isMultiDay = (d: DayKey) => d === "week" || d === "month";
+export function isMultiDay(d: DayKey): boolean {
+  return d === "week" || d === "month";
+}
 
 const DAYS: DayKey[] = ["today", "tomorrow", "d2", "d3", "week", "month"];
 const FROMS: FromKey[] = ["now", "noon", "evening", "night", "all"];

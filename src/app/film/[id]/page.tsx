@@ -4,6 +4,7 @@ import { Hero } from "@/components/film/Hero";
 import { VenueCard } from "@/components/film/VenueCard";
 import { FilterSentence } from "@/components/FilterSentence";
 import { LazyGroup } from "@/components/LazyGroup";
+import { WatchedButton } from "@/components/WatchedButton";
 import { getData } from "@/lib/data";
 import { getPlace } from "@/lib/location";
 import { distanceKm, formatDistance } from "@/lib/geo";
@@ -65,6 +66,9 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
             )}
           </div>
         )}
+        <div className="flex">
+          <WatchedButton filmId={film.id} title={film.title} variant="page" />
+        </div>
         <div className="h-px bg-line" />
         <FilterSentence q={q} venues={venueOptions(data.venues.values(), place)} genres={[]} showGenres={false} />
 

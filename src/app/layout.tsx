@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { WatchedStyles } from "@/components/WatchedStyles";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
 import "./globals.css";
 
@@ -34,7 +35,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="he" dir="rtl" className={`${plex.variable} ${frank.variable} h-full`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <WatchedStyles />
+        {children}
+      </body>
     </html>
   );
 }
