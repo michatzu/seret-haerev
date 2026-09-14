@@ -5,6 +5,7 @@ import { PLANET, RAVHEN, scrapeCineworld } from "@/scraper/cineworld";
 import { scrapeCinemaCity, scrapeHot, scrapeMovieland } from "@/scraper/modulus";
 import { scrapeLev } from "@/scraper/lev";
 import { scrapeCinematheques } from "@/scraper/cinematheques";
+import { scrapePopup } from "@/scraper/popup";
 import { buildSnapshot } from "@/scraper/normalize";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
@@ -17,6 +18,7 @@ const tasks: { chain: Chain; run: () => Promise<AdapterResult> }[] = [
   { chain: "movieland", run: scrapeMovieland },
   { chain: "lev", run: scrapeLev },
   { chain: "cinematheque", run: scrapeCinematheques },
+  { chain: "other", run: scrapePopup },
 ];
 
 async function main() {
