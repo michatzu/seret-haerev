@@ -9,7 +9,7 @@ import { getData } from "@/lib/data";
 export const revalidate = 86_400;
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
-const TIMEOUT_MS = 8_000;
+const TIMEOUT_MS = 5_000;
 const MIN_BYTES = 900;
 
 /** 2:3 placeholder, returned when nothing loads so the <img> never shows a broken icon. */
