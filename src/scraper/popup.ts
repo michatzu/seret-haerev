@@ -15,6 +15,7 @@ import type { AdapterResult, RawFilm, RawScreening, Venue } from "@/lib/types";
 import { getText } from "./http";
 import { zonedToIso } from "@/lib/tz";
 import { shortHash } from "@/lib/text";
+import { geocode, saveGeocodeCache } from "./geocode";
 
 const CHAIN = "other" as const;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -43,6 +44,34 @@ const findVenue = (name: string): PopupVenue | undefined => POPUP_VENUES.find((v
 function toVenue(v: PopupVenue): Venue {
   const { id, chain, name, city, address, lat, lng, kind, url } = v;
   return { id, chain, name, city, address, lat, lng, kind, url };
+}
+
+/**
+ * A venue the feed names but the table does not know: look it up once and keep it, so a one-off
+ * screening in a bar still lands on the map. The street address is only ever a lookup hint — the
+ * venue keeps the name the feed gave it, because "\u05e4\u05e2\u05de\u05d5\u05e0\u05d9\u05ea 9" is not a name anybody recognises.
+ * Places that cannot be resolved are skipped rather than guessed at.
+ */
+const resolved = new Map<string, Venue | null>();
+const looksLikeAddress = (s: string) => /^[\u05d0-\u05ea\w'"\u05f3\u05f4.\- ]{2,40}\s+\d{1,4}$/.test(s.trim()) || /^\d/.test(s.trim());
+
+async function resolveVenue(rawName: string, address = "", city = "\u05ea\u05dc \u05d0\u05d1\u05d9\u05d1"): Promise<Venue | null> {
+  const known = findVenue(rawName) ?? (address ? findVenue(address) : undefined);
+  if (known) return toVenue(known);
+
+  const name = rawName.replace(/\s+/g, " ").replace(/^[\s,\-\u2013\u2014]+|[\s,\-\u2013\u2014]+$/g, "").trim();
+  if (name.length < 2 || name.length > 60) return null;
+  if (/^\d+$/.test(name) || /\u05de\u05e1\u05e4\u05e8 \u05de\u05d9\u05e7\u05d5\u05de\u05d9\u05dd/.test(name)) return null; // "\u05de\u05e1\u05e4\u05e8 \u05de\u05d9\u05e7\u05d5\u05de\u05d9\u05dd \u05d1\u05e8\u05d7\u05d1\u05d9 \u05d9\u05e4\u05d5" is not a place
+  const key = `${name}|${address}|${city}`;
+  if (resolved.has(key)) return resolved.get(key)!;
+
+  // the name first, then the address as a fallback query; either way the name is what we display
+  const hit = (await geocode(name, city)) ?? (address && !looksLikeAddress(name) ? null : address ? await geocode(address, city) : null);
+  const venue = hit
+    ? { id: `pop-${shortHash(`${name}|${city}`.toLowerCase())}`, chain: CHAIN, name, city, address: address || undefined, lat: hit.lat, lng: hit.lng, kind: "boutique" as const }
+    : null;
+  resolved.set(key, venue);
+  return venue;
 }
 
 /* ------------------------------------------------- Tel Aviv municipality */
@@ -107,17 +136,27 @@ function cleanSeriesTitle(raw: string): { title: string; original?: string } | n
  * "קולנוע הפסגה - האלמנט החמישי", "הקרנת הסרט פוטו פרג׳ ושיח עם הבמאי",
  * "קולנוע הפסגה: 20 שנה לסרט מכוניות". Peel the series prefix and the editorial tail.
  */
+/** Quote characters that wrap a title; a lone geresh inside a word (סנאץ׳) must survive. */
+const QUOTES = "\"'\u05f3\u05f4\u2018\u2019\u201c\u201d";
+
 function cleanEventTitle(raw: string): string | null {
   let s = raw.replace(/\s+/g, " ").trim();
-  s = s.replace(/^(?:קולנוע\s+הפסגה|קולנוע\s+בגן|סרטי\s+קיץ)\s*[-–—:]\s*/, "");
+  const unquote = (x: string) => { let t = x.trim(); while (t.length > 2 && QUOTES.includes(t[0]) && QUOTES.includes(t[t.length - 1])) t = t.slice(1, -1).trim(); return t; };
+  s = unquote(s);
+  s = s.replace(/^(?:קולנוע\s+הפסגה|קולנוע\s+בגן|סרטי\s+קיץ)\s*(?:לילדים\s+ולילדות|לילדים)?\s*[-–—:]\s*/, "");
   s = s.replace(/^הקרנ(?:ת|ה\s+של)\s+(?:הסרט|סרט|הסרטים)\s+/, "");
   s = s.replace(/^(?:סרט|הסרט)\s*:\s*/, "");
-  // "20 שנה לסרט מכוניות" / "חוגגים 30 שנה לסרט סנאצ׳"
-  const anniversary = /\d+\s+שנה\s+ל(?:סרט|הסרט)\s+(.+)$/.exec(s);
+  // a series label in front of the film: "שישי מהסרטים: דויד", "מוצ״ש קולנועי: ..."
+  s = s.replace(/^([^:]{3,32}):\s*(?=\S)/u, (m, label: string) =>
+    /קולנוע|סרטים|מועדון|סדרת|ערב|מוצ|שישי|פסטיבל|הקרנ/.test(label) ? "" : m);
+  // "20 שנה לסרט מכוניות" / "חוגגים 30 שנה לסרט סנאץ"
+  s = s.replace(/^[\s:\-\u2013\u2014]+/, ""); // "הקרנת סרט : X" leaves a stray colon
+  const anniversary = /(?:חוגגים\s+)?\d+\s+שנה\s+ל(?:סרט\s+|הסרט\s+)?(.+)$/.exec(s);
   if (anniversary) s = anniversary[1];
-  s = s.replace(/\s*[-–—]\s*(?:חוגגים|ערב|מפגש|בהשתתפות|הקרנה|שיח|לרגל|במסגרת|מופע)\b.*$/, "");
+  s = s.replace(/\s*[-–—]\s*(?:חוגגים|ערב|מפגש|בהשתתפות|הקרנה|שיח|לרגל|במסגרת|מופע)[\sולב].*$/u, "");
+  s = s.replace(/\s+ב(?:מועדון|מסגרת|סדרת)\s+.*$/u, "");
   s = s.replace(/\s+ו?שיח\s+עם\s+הבמאי.*$/, "");
-  s = s.replace(/\s*[-–—:]\s*$/, "").trim();
+  s = unquote(s.replace(/[!\s]*[-–—:]?[!\s]*$/, ""));
   if (s.length < 2 || s.length > 90) return null;
   if (/^קולנוע\s+הפסגה/.test(s)) return null; // the umbrella record, not a film
   return s;
@@ -163,11 +202,11 @@ async function fromMunicipality(days: number): Promise<{ venues: Venue[]; films:
   for (const pass of ["event", "series"] as const) {
     for (const it of items) {
       if (!looksLikeCinema(it)) continue;
-      const venue = findVenue(field(it, "TlvCityLocation")) ?? findVenue(field(it, "Title"));
-      if (!venue) continue; // only venues we can place on the map
-      const v = toVenue(venue);
+      const loc = field(it, "TlvCityLocation");
+      const v = (await resolveVenue(loc, field(it, "TlvAddress1"))) ?? (findVenue(field(it, "Title")) ? toVenue(findVenue(field(it, "Title"))!) : null);
+      if (!v) continue; // a place we cannot put on the map is worse than no listing
       venues.set(v.id, v);
-      const outdoor = venue.kind === "outdoor";
+      const outdoor = v.kind === "outdoor";
       const itemId = field(it, "ListItemID");
       const url = `https://www.tel-aviv.gov.il/Pages/MainItemPage.aspx?WebID=${field(it, "WebID")}&ListID=${field(it, "ListID")}&ItemID=${itemId}`;
       const summary = stripTags(field(it, "TlvSummary"));
@@ -262,19 +301,18 @@ async function fromSecretTelAviv(days: number): Promise<{ venues: Venue[]; films
     if (!SCREENING_RE.test(summary) || NOT_SCREENING_RE.test(summary)) continue;
     const parsed = parseSummary(summary);
     if (!parsed) continue;
-    const venue = findVenue(parsed.venue) ?? findVenue(summary);
-    if (!venue) continue;
+    const v = (await resolveVenue(parsed.venue)) ?? (findVenue(summary) ? toVenue(findVenue(summary)!) : null);
+    if (!v) continue;
     const startsAt = ev.DTSTART ? icalToIso(ev.DTSTART, ev.DTSTART_PARAMS ?? "") : null;
     if (!startsAt) continue;
     const t = new Date(startsAt).getTime();
     if (!Number.isFinite(t) || t < now - 6 * 3600_000 || t > horizon) continue;
-    const v = toVenue(venue);
     venues.set(v.id, v);
     const filmId = `stlv-${shortHash(parsed.title.toLowerCase())}`;
     if (!films.has(filmId)) {
       films.set(filmId, { chain: CHAIN, sourceId: filmId, title: parsed.title, synopsis: ev.DESCRIPTION ? ev.DESCRIPTION.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 600) : undefined, isEvent: false });
     }
-    screenings.push({ chain: CHAIN, sourceId: `stlv-${ev.UID ?? `${filmId}-${startsAt}`}`, sourceFilmId: filmId, venueId: v.id, startsAt, attrs: venue.kind === "outdoor" ? ["outdoor"] : [], bookingUrl: ev.URL || "https://www.secrettelaviv.com/" });
+    screenings.push({ chain: CHAIN, sourceId: `stlv-${ev.UID ?? `${filmId}-${startsAt}`}`, sourceFilmId: filmId, venueId: v.id, startsAt, attrs: v.kind === "outdoor" ? ["outdoor"] : [], bookingUrl: ev.URL || "https://www.secrettelaviv.com/" });
   }
   return { venues: [...venues.values()], films: [...films.values()], screenings };
 }
@@ -285,6 +323,7 @@ const DAYS = 30;
 
 export async function scrapePopup(): Promise<AdapterResult> {
   const [muni, stlv] = await Promise.allSettled([fromMunicipality(DAYS), fromSecretTelAviv(DAYS)]);
+  await saveGeocodeCache();
   if (muni.status === "rejected" && stlv.status === "rejected") throw muni.reason;
   for (const r of [muni, stlv]) {
     if (r.status === "rejected") console.warn("  popup source failed:", r.reason instanceof Error ? r.reason.message : r.reason);
