@@ -11,9 +11,9 @@ export function Header({ q, place, venues, genres }: { q: Query; place: Resolved
       <div className="mx-auto max-w-[520px]">
         <div className="flex min-h-[44px] items-center justify-between gap-2">
           <Link href="/" className="font-serif text-[26px] font-bold leading-none text-ink">סרט הערב</Link>
-          <div className="flex items-center gap-1">
-            <LocationButton label={place.label} source={place.source} />
+          <div className="flex items-center gap-0.5">
             <WatchedLink />
+            <LocationButton label={place.label} source={place.source} />
           </div>
         </div>
         <FilterSentence q={q} venues={venues} genres={genres} />

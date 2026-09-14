@@ -64,20 +64,15 @@ const LANG_NAMES: Record<string, string> = {
 /**
  * The language of a film, in Hebrew. The value can arrive either as an ISO code (from TMDB and the
  * chains) or already as a Hebrew word (the Haifa festival prints "102 \u05d3\u05e7\u05f3, \u05d9\u05d5\u05d5\u05e0\u05d9\u05ea" in its listing),
- * so both are accepted. Codes outside the table fall back to the browser's own language names.
+ * so both are accepted. The table is the only source: Intl.DisplayNames would answer differently on
+ * the server and on a phone, and a mismatch during hydration leaves the whole page inert.
  */
 export function languageName(code?: string): string | undefined {
   const v = code?.trim();
   if (!v) return undefined;
   if (!/^[a-z]{2,3}(-[a-z]+)?$/i.test(v)) return v; // already a name
   const key = v.toLowerCase().split("-")[0];
-  if (LANG_NAMES[key]) return LANG_NAMES[key];
-  try {
-    const name = new Intl.DisplayNames(["he"], { type: "language" }).of(key);
-    return name && name.toLowerCase() !== key ? name : undefined;
-  } catch {
-    return undefined;
-  }
+  return LANG_NAMES[key];
 }
 
 export function plural(n: number, one: string, many: string): string {
@@ -86,4 +81,6 @@ export function plural(n: number, one: string, many: string): string {
 
 /** Hebrew counts: "בית קולנוע אחד" for one, "3 בתי קולנוע" for the rest. */
 export const venuesCount = (n: number) => (n === 1 ? "בית קולנוע אחד" : `${n} בתי קולנוע`);
+/** The same count as a prepositional phrase: "בבית קולנוע אחד" / "ב־3 בתי קולנוע". */
+export const inVenues = (n: number) => (n === 1 ? "בבית קולנוע אחד" : `ב־${n} בתי קולנוע`);
 export const screeningsCount = (n: number) => (n === 1 ? "הקרנה אחת" : `${n} הקרנות`);
