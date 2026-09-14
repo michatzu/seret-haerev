@@ -57,6 +57,8 @@ export interface Film {
   ageRating?: string;
   synopsis?: string;
   posterUrl?: string;
+  /** Every poster candidate across chains, best first; served through /api/poster/[id] */
+  posterUrls?: string[];
   trailerUrl?: string;
   imdbRating?: number;
   imdbVotes?: number;

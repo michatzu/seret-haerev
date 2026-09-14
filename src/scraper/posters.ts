@@ -44,9 +44,13 @@ export async function fillPosters(films: Film[]): Promise<{ posters: number; syn
         try { parsed = parse(src.chain, await getText(url)); } catch { /* keep nulls */ }
         hit = cache[ck] = { ...parsed, at: new Date().toISOString() };
       }
-      if (!film.posterUrl && hit.url) { film.posterUrl = hit.url; posters++; }
+      if (hit.url) {
+        // keep every page poster as a fallback candidate, even once one is chosen
+        film.posterUrls = [...new Set([...(film.posterUrls ?? []), hit.url])];
+        if (!film.posterUrl) { film.posterUrl = hit.url; posters++; }
+      }
       if (!film.synopsis && hit.synopsis) { film.synopsis = hit.synopsis; synopses++; }
-      if (film.posterUrl && film.synopsis) break;
+      if (film.synopsis && (film.posterUrls?.length ?? 0) >= 2) break; // enough for a fallback
     }
   });
   await mkdir(path.dirname(CACHE_FILE), { recursive: true });

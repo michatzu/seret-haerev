@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Poster } from "./Poster";
+import { Poster, hasPoster } from "./Poster";
 import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
@@ -35,7 +35,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
   return (
     <article className="flex gap-3 rounded-xl border border-line bg-card p-3.5">
       <Link href={href} className="shrink-0" aria-label={row.film.title}>
-        <Poster src={row.film.posterUrl} alt="" width={56} height={84} />
+        <Poster filmId={row.film.id} hasPoster={hasPoster(row.film)} alt="" width={56} height={84} />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-col gap-[3px]">

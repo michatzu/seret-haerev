@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronForward, Film as FilmIcon, Play } from "../Icons";
 import { PosterZoom } from "./PosterZoom";
+import { hasPoster } from "../Poster";
 import { languageName } from "@/lib/format";
 import type { Film } from "@/lib/types";
 
@@ -14,9 +15,9 @@ export function Hero({ film, backHref }: { film: Film; backHref: string }) {
 
   return (
     <section className="relative overflow-hidden bg-[#2a2a2a] text-[#f3f4f6]">
-      {film.posterUrl && (
+      {hasPoster(film) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={film.posterUrl} alt="" aria-hidden className="absolute -inset-16 h-[calc(100%+128px)] w-[calc(100%+128px)] max-w-none object-cover opacity-95 blur-[34px] saturate-125" />
+        <img src={`/api/poster/${film.id}`} alt="" aria-hidden className="absolute -inset-16 h-[calc(100%+128px)] w-[calc(100%+128px)] max-w-none object-cover opacity-95 blur-[34px] saturate-125" />
       )}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,10,14,0.25)_0%,rgba(8,10,14,0.5)_55%,rgba(8,10,14,0.72)_100%)]" />
       <div className="relative mx-auto flex w-full max-w-[520px] flex-col gap-4 px-4 pb-5 pt-[max(16px,env(safe-area-inset-top))]">
@@ -24,8 +25,8 @@ export function Hero({ film, backHref }: { film: Film; backHref: string }) {
           <Link href={backHref} aria-label="חזרה" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15"><ChevronForward width={20} height={20} /></Link>
         </div>
         <div className="flex gap-4">
-          {film.posterUrl ? (
-            <PosterZoom src={film.posterUrl} alt={film.title} />
+          {hasPoster(film) ? (
+            <PosterZoom src={`/api/poster/${film.id}`} alt={film.title} />
           ) : (
             <div className="flex h-[165px] w-[110px] shrink-0 items-center justify-center rounded-lg bg-white/10"><FilmIcon width={26} height={26} /></div>
           )}

@@ -129,7 +129,7 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
       arr.map((f) => f[key]).find((v) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0));
     // title: prefer a Hebrew title without dubbing noise, from the best-ranked source
     const cleanTitles = arr.map((f) => cleanTitle(f.title)).filter((t) => t && !/[Ѐ-ӿ]/.test(t));
-    const title = (cleanTitles[0] ?? cleanTitle(arr[0].title) ?? arr[0].title).replace(/\s+/g, " ").trim();
+    const title = (cleanTitles[0] || cleanTitle(arr[0].title) || arr[0].title).replace(/\s+/g, " ").trim();
     const rawGenres = [...new Set(arr.flatMap((f) => f.genres ?? []))];
     const dubbedShare = (dubbedHeCount.get(id) ?? 0) / (totalCount.get(id) ?? 1);
     const isIsraeli = arr.some((f) => f.isIsraeli) || (pick("language") === "he" && dubbedShare < 0.5);
@@ -147,6 +147,7 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
       ageRating: pick("ageRating"),
       synopsis: pick("synopsis"),
       posterUrl: pick("posterUrl"),
+      posterUrls: [...new Set(arr.map((f) => f.posterUrl).filter((u): u is string => !!u))],
       trailerUrl: pick("trailerUrl"),
       director: pick("director"),
       cast: pick("cast"),
