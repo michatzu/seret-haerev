@@ -5,16 +5,15 @@ import { TZ, ymdInIsrael, ymdPlusDays } from "./tz";
 import { genreLabel } from "./genres";
 
 export type DayKey = "today" | "tomorrow" | "d2" | "d3" | "week";
-export type Band = "noon" | "evening" | "night";
-export type FromKey = "now" | Band;
+export type FromKey = "now" | "noon" | "evening" | "night" | "all";
 export type RadiusKey = "5" | "15" | "30" | "all";
 export type HallKey = "imax" | "vip" | "4dx" | "screenx" | "3d" | "cinematheque" | "outdoor";
 export type SortKey = "dist" | "time" | "imdb";
 
 export interface Query {
   day: DayKey;
-  /** [] = all day; ["now"] = from now on (today only); otherwise a set of bands */
-  from: FromKey[];
+  /** "now" is only meaningful today; "all" = the whole day */
+  from: FromKey;
   radius: RadiusKey;
   /** [] = all halls */
   halls: HallKey[];
@@ -28,13 +27,13 @@ export interface Query {
 }
 
 const DAYS: DayKey[] = ["today", "tomorrow", "d2", "d3", "week"];
-const FROMS: FromKey[] = ["now", "noon", "evening", "night"];
+const FROMS: FromKey[] = ["now", "noon", "evening", "night", "all"];
 const RADII: RadiusKey[] = ["5", "15", "30", "all"];
 export const HALLS: HallKey[] = ["imax", "vip", "4dx", "screenx", "3d", "cinematheque", "outdoor"];
 const SORTS: SortKey[] = ["dist", "time", "imdb"];
 
 export const DEFAULT_RADIUS: RadiusKey = "15";
-export const defaultFrom = (day: DayKey): FromKey[] => (day === "today" ? ["now"] : ["evening"]);
+export const defaultFrom = (day: DayKey): FromKey => (day === "today" ? "now" : "evening");
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -43,12 +42,8 @@ const pick = <T extends string>(v: string | undefined, allowed: readonly T[], fa
 
 export function parseQuery(sp: SP): Query {
   const day = pick(one(sp.day), DAYS, "today");
-  let from: FromKey[];
-  const rawFrom = one(sp.from);
-  if (rawFrom === undefined) from = defaultFrom(day);
-  else if (rawFrom === "all") from = [];
-  else from = list(rawFrom).filter((f): f is FromKey => FROMS.includes(f as FromKey));
-  if (from.includes("now")) from = day === "today" ? ["now"] : ["evening"];
+  let from = pick(one(sp.from), FROMS, defaultFrom(day));
+  if (from === "now" && day !== "today") from = "evening";
   const radius = pick(one(sp.r), RADII, DEFAULT_RADIUS);
   const halls = [...new Set(list(sp.hall).filter((h): h is HallKey => HALLS.includes(h as HallKey)))];
   const venues = [...new Set(list(sp.v))];
@@ -62,8 +57,7 @@ export function parseQuery(sp: SP): Query {
 export function queryToSearch(q: Query): string {
   const p = new URLSearchParams();
   if (q.day !== "today") p.set("day", q.day);
-  const df = defaultFrom(q.day);
-  if (!(q.from.length === df.length && q.from.every((f) => df.includes(f)))) p.set("from", q.from.length ? sortFrom(q.from).join(",") : "all");
+  if (q.from !== defaultFrom(q.day)) p.set("from", q.from);
   if (q.radius !== DEFAULT_RADIUS) p.set("r", q.radius);
   if (q.halls.length) p.set("hall", q.halls.join(","));
   if (q.venues.length) p.set("v", q.venues.join(","));
@@ -74,7 +68,6 @@ export function queryToSearch(q: Query): string {
   const s = p.toString();
   return s ? `?${s}` : "";
 }
-const sortFrom = (f: FromKey[]) => [...f].sort((a, b) => FROMS.indexOf(a) - FROMS.indexOf(b));
 
 /* ---- labels (Hebrew) ---- */
 const wdFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, weekday: "long" });
@@ -87,11 +80,7 @@ export function dayLabel(day: DayKey, now = new Date()): string {
     case "d3": return wdFmt.format(new Date(now.getTime() + 3 * 864e5));
   }
 }
-export const FROM_LABELS: Record<FromKey, string> = { now: "מעכשיו", noon: "צהריים", evening: "ערב", night: "לילה" };
-export function fromLabel(from: FromKey[]): string {
-  if (!from.length) return "כל היום";
-  return sortFrom(from).map((f) => FROM_LABELS[f]).join(", ");
-}
+export const FROM_LABELS: Record<FromKey, string> = { now: "מעכשיו", noon: "צהריים", evening: "ערב", night: "לילה", all: "כל היום" };
 export const RADIUS_LABELS: Record<RadiusKey, string> = { "5": "עד 5 ק״מ", "15": "עד 15 ק״מ", "30": "עד 30 ק״מ", all: "כל הארץ" };
 export const HALL_LABELS: Record<HallKey, string> = { imax: "IMAX", vip: "VIP", "4dx": "4DX", screenx: "ScreenX", "3d": "3D", cinematheque: "סינמטק", outdoor: "חוץ" };
 export function hallsLabel(halls: HallKey[]): string {
@@ -127,11 +116,13 @@ export function datesFor(day: DayKey, now = new Date()): string[] {
   }
 }
 
-export function inTimeWindow(iso: string, from: FromKey[], now: Date): boolean {
-  if (!from.length) return true;
-  if (from.includes("now")) return new Date(iso).getTime() >= now.getTime() - 15 * 60_000; // started up to 15 minutes ago
+export function inTimeWindow(iso: string, from: FromKey, now: Date): boolean {
+  if (from === "all") return true;
+  if (from === "now") return new Date(iso).getTime() >= now.getTime() - 15 * 60_000; // started up to 15 minutes ago
   const h = hourOf(iso);
-  return from.some((b) => (b === "noon" ? h >= 12 && h < 17 : b === "evening" ? h >= 17 && h < 21 : h >= 21 || h < 4));
+  if (from === "noon") return h >= 12 && h < 17;
+  if (from === "evening") return h >= 17 && h < 21;
+  return h >= 21 || h < 4;
 }
 
 export function matchesHalls(s: Screening, venue: Venue, halls: HallKey[]): boolean {
