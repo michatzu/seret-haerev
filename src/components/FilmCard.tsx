@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Poster, hasPoster } from "./Poster";
-import { WatchedButton } from "./WatchedButton";
+import { FilmActions } from "./FilmActions";
+import { SwipeToFile } from "./SwipeToFile";
 import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
@@ -34,6 +35,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
   const href = `/film/${row.film.id}${search}`;
 
   return (
+    <SwipeToFile filmId={row.film.id}>
     <article data-film={row.film.id} className="flex gap-3 rounded-xl border border-line bg-card p-3.5">
       <Link href={href} className="shrink-0" aria-label={row.film.title}>
         <Poster filmId={row.film.id} hasPoster={hasPoster(row.film)} alt="" width={56} height={84} />
@@ -44,7 +46,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
             <Link href={href} className="font-serif text-[19px] font-bold leading-[1.2] text-ink">{row.film.title}</Link>
             <div className="text-[12px] text-muted">{subLine(row.film)}</div>
           </div>
-          <WatchedButton filmId={row.film.id} title={row.film.title} />
+          <FilmActions filmId={row.film.id} title={row.film.title} />
         </div>
         <div className="flex flex-col gap-1.5">
           {shown.map((v) => (
@@ -65,6 +67,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
         )}
       </div>
     </article>
+    </SwipeToFile>
   );
 }
 

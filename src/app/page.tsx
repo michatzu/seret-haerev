@@ -46,7 +46,7 @@ export default async function Home(props: PageProps<"/">) {
           <span>·</span>
           <span>לחיצה על שעה פותחת את הקופה של בית הקולנוע</span>
           <span>·</span>
-          <Link href="/watched" className="underline decoration-dotted">צפיתי</Link>
+          <Link href="/lists" className="underline decoration-dotted">הרשימות שלי</Link>
           <span>·</span>
           <Link href="/privacy" className="underline decoration-dotted">פרטיות</Link>
         </p>

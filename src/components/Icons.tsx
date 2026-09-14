@@ -47,3 +47,13 @@ export const Locate = (p: SVGProps<SVGSVGElement>) => (
 export const Eye = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3.2" /></svg>
 );
+
+export const EyeOff = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M3 3l18 18M10.6 6.1A8.6 8.6 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-3.3 3.9M6.5 8.1A16 16 0 0 0 2.5 12S6 18 12 18c1.4 0 2.6-.3 3.7-.8" /><path d="M9.9 9.9a3.2 3.2 0 0 0 4.3 4.3" /></svg>
+);
+export const Bookmark = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" /></svg>
+);
+export const BookmarkFilled = (p: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" {...p}><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" /></svg>
+);

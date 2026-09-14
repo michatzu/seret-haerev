@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FilterSentence, type VenueOption } from "./FilterSentence";
 import { LocationButton } from "./LocationButton";
-import { WatchedLink } from "./WatchedLink";
+import { ListsLink } from "./ListsLink";
 import type { Query } from "@/lib/query";
 import type { ResolvedPlace } from "@/lib/location";
 
@@ -12,7 +12,7 @@ export function Header({ q, place, venues, genres }: { q: Query; place: Resolved
         <div className="flex min-h-[44px] items-center justify-between gap-2">
           <Link href="/" className="font-serif text-[26px] font-bold leading-none text-ink">סרט הערב</Link>
           <div className="flex items-center gap-0.5">
-            <WatchedLink />
+            <ListsLink />
             <LocationButton label={place.label} source={place.source} />
           </div>
         </div>
