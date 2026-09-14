@@ -17,6 +17,8 @@ function pageUrl(chain: string, id: string, title: string): string | undefined {
   if (chain === "lev") return `https://www.lev.co.il/movies/${encodeURIComponent(id.replace(/\s+/g, "-"))}/`;
   // Jerusalem's calendar carries no images; each film's node page does
   if (chain === "cinematheque" && id.startsWith("jlm-node-")) return `https://jer-cin.org.il/he/node/${id.slice("jlm-node-".length)}`;
+  // the Haifa festival's schedule carries no images either; its film pages do
+  if (chain === "other" && id.startsWith("haifa-film-")) return `https://www.haifaff.co.il/%D7%A1%D7%A8%D7%98%D7%99%D7%9D/${id.slice("haifa-film-".length)}/x`;
   void title;
   return undefined;
 }
@@ -40,7 +42,7 @@ function parse(chain: string, html: string): { url: string | null; synopsis: str
     const desc = /<meta\s+property="og:description"\s+content="([^"]*)"/i.exec(html)?.[1];
     return { url, synopsis: desc ? decode(desc) : null };
   }
-  if (chain === "cinematheque") {
+  if (chain === "cinematheque" || chain === "other") {
     const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1];
     const desc = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1];
     return { url: og && !CHROME.test(og) ? decode(og) : null, synopsis: desc ? decode(desc) : null };

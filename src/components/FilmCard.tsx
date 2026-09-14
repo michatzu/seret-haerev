@@ -10,8 +10,8 @@ import type { Screening } from "@/lib/types";
 const MAX_VENUES = 2;
 
 export function subLine(row: FilmRow["film"]): string {
-  const origin = row.isIsraeli ? "ישראל" : languageName(row.language);
-  const parts = [origin, row.year ? String(row.year) : undefined].filter(Boolean);
+  // always the spoken language, never the production country: mixing the two read as a mistake
+  const parts = [languageName(row.language), row.year ? String(row.year) : undefined].filter(Boolean);
   let s = parts.join(", ");
   if (row.imdbRating) s += `${s ? " · " : ""}IMDb ${row.imdbRating.toFixed(1)}`;
   return s;

@@ -7,10 +7,11 @@ import type { Film } from "@/lib/types";
 
 /** Top of the film page: the poster itself, enlarged and blurred, is the background. */
 export function Hero({ film, backHref }: { film: Film; backHref: string }) {
-  const origin = film.isIsraeli ? "ישראל" : languageName(film.language);
-  const line1 = [origin, film.year, film.runtime ? `${film.runtime} דק׳` : undefined, film.ageRating && film.ageRating !== "לכל הגילאים" ? `הותר מגיל ${film.ageRating.replace("+", "")}` : film.ageRating].filter(Boolean).join(" · ");
+  // line 1 is where and when the film is from; line 2 is what you will hear and read
+  const country = film.country ?? (film.isIsraeli ? "ישראל" : undefined);
+  const line1 = [country, film.year, film.runtime ? `${film.runtime} דק׳` : undefined, film.ageRating && film.ageRating !== "לכל הגילאים" ? `הותר מגיל ${film.ageRating.replace("+", "")}` : film.ageRating].filter(Boolean).join(" · ");
   const lang = languageName(film.language);
-  const line2 = film.language ? `${lang}${film.language === "he" ? "" : " · כתוביות בעברית"}` : undefined;
+  const line2 = lang ? `${lang}${film.language === "he" ? "" : " · כתוביות בעברית"}` : undefined;
   const genres = film.genres.slice(0, 3).join(" · ");
 
   return (

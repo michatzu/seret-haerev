@@ -99,13 +99,16 @@ export async function scrapeHaifaFestival(): Promise<AdapterResult> {
 
         venues.set(venueId, { id: venueId, chain: hall.id ? "cinematheque" : CHAIN, name: hall.name, city: "חיפה", address: hall.address, lat: hall.lat, lng: hall.lng, kind: hall.kind, url: "https://www.haifaff.co.il" });
         const { runtime, language } = parseInfo(s[4] ?? "");
-        const filmId = `fest-haifa-${shortHash(title.toLowerCase())}`;
-        if (!films.has(filmId)) {
-          films.set(filmId, { chain: CHAIN, sourceId: filmId, title, runtime, language, director: director || undefined, isEvent: false });
-        }
         const tail = s[5] ?? "";
         const order = ORDER_LINK.exec(tail)?.[1];
         const more = MORE_LINK.exec(tail)?.[1];
+        // the festival's own film-page id, so the poster fetcher can find the page later
+        const pageId = more ? /\/(?:%D7%A1%D7%A8%D7%98%D7%99%D7%9D|\u05e1\u05e8\u05d8\u05d9\u05dd)\/(\d+)/.exec(decode(more))?.[1] : undefined;
+        // the festival's own film id when it published one, so its page (and poster) can be found
+        const filmId = pageId ? `haifa-film-${pageId}` : `fest-haifa-${shortHash(title.toLowerCase())}`;
+        if (!films.has(filmId)) {
+          films.set(filmId, { chain: CHAIN, sourceId: filmId, title, runtime, language, director: director || undefined, isEvent: false });
+        }
         screenings.push({
           chain: CHAIN,
           sourceId: `fest-haifa-${shortHash(`${filmId}${startsAt}${venueId}`)}`,

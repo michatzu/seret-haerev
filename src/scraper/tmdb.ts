@@ -145,8 +145,11 @@ async function findTmdbId(key: string, film: Film): Promise<number | undefined> 
     hits.sort((a, b) => score(b, film.year, now) - score(a, film.year, now));
     // TMDB matches loosely on alternative titles, which once turned "\u05d4\u05de\u05e9\u05d7\u05e7" into Avengers:
     // Endgame ("\u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"). Require the winner to actually resemble what we asked for.
-    const best = hits.find((h) => titlesAgree(q, h.title) || titlesAgree(q, h.original_title));
-    if (best) return best.id;
+    const agrees = hits.find((h) => titlesAgree(q, h.title) || titlesAgree(q, h.original_title));
+    if (agrees) return agrees.id;
+    // TMDB also matches alternative titles, which is how "\u05e1\u05e7\u05d5\u05d8 \u05e4\u05d9\u05dc\u05d2\u05e8\u05d9\u05dd \u05e0\u05d2\u05d3 \u05d4\u05e2\u05d5\u05dc\u05dd" finds a film
+    // released here as "\u05d4\u05d0\u05e7\u05e1\u05d9\u05dd \u05e9\u05dc \u05d4\u05d7\u05d1\u05e8\u05d4 \u05e9\u05dc\u05d9". One hit for a title of several words is that, not a coincidence.
+    if (hits.length === 1 && q.trim().split(/\s+/).length >= 2) return hits[0].id;
   }
   return undefined;
 }
@@ -186,6 +189,7 @@ interface Details {
   id: number; title: string; original_title: string; original_language: string; overview: string; release_date?: string; runtime?: number;
   popularity: number; poster_path?: string | null; backdrop_path?: string | null;
   genres?: { name: string }[]; production_countries?: { iso_3166_1: string }[]; origin_country?: string[];
+  spoken_languages?: { iso_639_1: string; english_name?: string }[];
   external_ids?: { imdb_id?: string | null };
   credits?: { cast?: { name: string; order: number }[]; crew?: { job: string; name: string }[] };
   videos?: { results?: { site: string; type: string; key: string; iso_639_1: string; official?: boolean }[] };
@@ -213,7 +217,9 @@ async function fetchDetails(key: string, id: number): Promise<Enrichment> {
     trailerUrl: video[0] ? `https://www.youtube.com/watch?v=${video[0].key}` : undefined,
     director,
     cast: he.credits?.cast?.slice(0, 6).map((c) => c.name),
-    language: he.original_language,
+    // original_language is the production's language, not the film's: The Fifth Element is a
+    // French production spoken in English. The first spoken language is what the audience hears.
+    language: he.spoken_languages?.[0]?.iso_639_1 || he.original_language,
     popularity: he.popularity,
   };
 }
