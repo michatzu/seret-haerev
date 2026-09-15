@@ -21,6 +21,9 @@
   --ph-ink: #98a2b3;
   --header-bg: #ffffff;
   --warn: #a8641b;
+  --toast: #1f2530;
+  --toast-ink: #f3f4f6;
+  --toast-accent: #8fd6da;
   --overlay: rgba(16, 24, 40, 0.5);
   color-scheme: light;
 }
@@ -46,6 +49,9 @@
     --ph-ink: #6b7280;
     --header-bg: #171b22;
     --warn: #e0a45c;
+    --toast: #e9eaee;
+    --toast-ink: #12151b;
+    --toast-accent: #0f6f74;
     --overlay: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -70,6 +76,9 @@
   --color-ph-ink: var(--ph-ink);
   --color-header: var(--header-bg);
   --color-warn: var(--warn);
+  --color-toast: var(--toast);
+  --color-toast-ink: var(--toast-ink);
+  --color-toast-accent: var(--toast-accent);
   --font-sans: var(--font-plex), "Arial Hebrew", system-ui, sans-serif;
   --font-serif: var(--font-frank), "David", Georgia, serif;
 }

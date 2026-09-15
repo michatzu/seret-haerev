@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronForward } from "./Icons";
+import { Close } from "./Icons";
 import { Poster } from "./Poster";
 import { clearList, idsWith, setStatus, STATUS_LABEL, STATUSES, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 import { languageName } from "@/lib/format";
@@ -42,12 +42,9 @@ export function ListsView() {
     <>
       <header className="border-b border-line bg-header px-4 pb-0 pt-[max(18px,env(safe-area-inset-top))]">
         <div className="mx-auto max-w-[520px]">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <h1 className="font-serif text-[26px] font-bold leading-none text-ink">הרשימות שלי</h1>
-            <Link href="/" className="flex h-11 items-center gap-1 text-[14px] font-medium text-accent">
-              <span>כל הסרטים</span>
-              <ChevronForward width={16} height={16} />
-            </Link>
+
           </div>
           <div className="flex gap-1 pt-1" role="tablist">
             {STATUSES.map((s) => {
@@ -84,8 +81,9 @@ export function ListsView() {
                   </div>
                   {f.screenings > 0 ? <div className="text-[12px] text-muted">מוקרן עכשיו</div> : <div className="text-[12px] text-muted">ירד מהמסכים</div>}
                 </div>
-                <button type="button" onClick={() => setStatus(f.id, tab)} className="h-9 shrink-0 rounded-lg border border-line px-3 text-[13px] font-medium text-ink">
-                  הסרה
+                <button type="button" onClick={() => setStatus(f.id, tab, f.title)} aria-label={`הוצאה מהרשימה: ${f.title}`} title="הוצאה מהרשימה"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted">
+                  <Close width={17} height={17} />
                 </button>
               </article>
             ))}

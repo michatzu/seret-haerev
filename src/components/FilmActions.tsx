@@ -31,7 +31,7 @@ export function FilmActions({ filmId, title, size = "card" }: { filmId: string; 
             type="button"
             aria-pressed={active}
             aria-label={`${label}: ${title}`}
-            onClick={() => setStatus(filmId, status)}
+            onClick={() => setStatus(filmId, status, title)}
             className={`flex min-w-0 flex-1 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border text-[12px] font-medium transition-colors ${
               big ? "h-11 text-[14px]" : "h-[34px]"
             } ${active ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent" : "border-line text-muted"}`}

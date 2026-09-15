@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ListStyles } from "@/components/ListStyles";
+import { UndoBar } from "@/components/UndoBar";
+import { TabBar } from "@/components/TabBar";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
 import "./globals.css";
 
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ListStyles />
         {children}
+        <TabBar />
+        <UndoBar />
       </body>
     </html>
   );

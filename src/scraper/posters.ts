@@ -27,28 +27,77 @@ function pageUrl(chain: string, id: string, title: string): string | undefined {
 /** Images the page uses as chrome rather than as the film's poster. */
 const CHROME = /logo|icon|placeholder|banner|header|footer|sprite|avatar/i;
 
+/** Where a page stops describing the film and starts selling tickets. */
+const BOILERPLATE = /(\*\s*)?לקוחות יקרים|שימו לב\s*:|ברכישת כרטיסים|הכניסה לאולם|רכישת כרטיסים|למידע נוסף|מחיר כרטיס|הנחה למנויים|\d{2,3}\s*(דקות|דק׳|דק')\s*,|\bבהשתתפות\b.*\bבמאי\b/;
+
+/**
+ * A synopsis fit to print: the sales notice that follows it on most cinema pages is cut away, and
+ * an over-long text ends at a sentence rather than in the middle of a word.
+ */
+function cleanSynopsis(raw: string | null | undefined, limit = 900): string | null {
+  if (!raw) return null;
+  let t = decode(raw.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+  const stop = BOILERPLATE.exec(t);
+  if (stop && stop.index > 60) t = t.slice(0, stop.index).trim();
+  t = t.replace(/\s*\d{2,3}\s*(דקות|דק׳|דק')\s*[,.|].*$/, "").trim();
+  t = t.replace(/\s*\|[^|]{0,80}(כתוביות|מגיל|תרגום|דיון|הנחיית)[^|]*$/, "").trim();
+  t = t.replace(/[\s*·|,\-–—]+$/, "").trim();
+  if (t.length <= limit) return t || null;
+  const cut = t.slice(0, limit);
+  const lastStop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "), cut.lastIndexOf("׃"));
+  return (lastStop > limit * 0.5 ? cut.slice(0, lastStop + 1) : cut.replace(/\s+\S*$/, "")).trim() + (lastStop > limit * 0.5 ? "" : "…");
+}
+
+/** The longest `description` in any JSON-LD block: sites truncate og:description, not this. */
+function jsonLdDescription(html: string): string | null {
+  let best: string | null = null;
+  for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data: unknown;
+    try { data = JSON.parse(m[1].trim()); } catch { continue; }
+    const walk = (v: unknown) => {
+      if (Array.isArray(v)) return v.forEach(walk);
+      if (!v || typeof v !== "object") return;
+      for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+        if (k === "description" && typeof val === "string" && (!best || val.length > best.length)) best = val;
+        else walk(val);
+      }
+    };
+    walk(data);
+  }
+  return best;
+}
+
+const ogContent = (html: string, prop: string) =>
+  new RegExp(`<meta[^>]+property=["']og:${prop}["'][^>]+content=["']([^"']*)["']`, "i").exec(html)?.[1]
+  ?? new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:${prop}["']`, "i").exec(html)?.[1];
+
 function parse(chain: string, html: string): { url: string | null; synopsis: string | null } {
   if (chain === "lev") {
     // The first wp-content image on a Lev page is the site-wide header background, not the poster.
     // The page's own JSON-LD names the real one as #mainImage; fall back to og:image, then to a
     // file that calls itself a poster, then to any upload that is not used as a CSS background.
     const ld = /#mainImage"\s*,\s*"url"\s*:\s*"([^"]+)"/.exec(html)?.[1];
-    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
-      ?? /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html)?.[1];
+    const og = ogContent(html, "image");
     const backgrounds = new Set([...html.matchAll(/background[^;"']*:\s*url\(\s*['"]?([^)'"]+)/gi)].map((m) => m[1].trim()));
     const uploads = [...html.matchAll(/https:\/\/www\.lev\.co\.il\/wp-content\/uploads\/[^"'\s)]+\.(?:jpe?g|png|webp)/gi)]
       .map((m) => m[0])
       .filter((u) => !CHROME.test(u) && !backgrounds.has(u));
     const url = unescapeSlashes(ld) ?? unescapeSlashes(og) ?? uploads.find((u) => /poster/i.test(u)) ?? uploads[0] ?? null;
-    const desc = /<meta\s+property="og:description"\s+content="([^"]*)"/i.exec(html)?.[1];
-    return { url, synopsis: desc ? decode(desc) : null };
+    // Lev truncates its own JSON-LD too; the whole text sits in .movie_content, under a "תקציר" heading
+    const body = /class="[^"]*movie_content[^"]*"[^>]*>([\s\S]{0,4000}?)<\/div>/i.exec(html)?.[1];
+    return { url, synopsis: cleanSynopsis(body?.replace(/^\s*תקציר\s*/, "")) ?? cleanSynopsis(jsonLdDescription(html)) ?? cleanSynopsis(ogContent(html, "description")) };
   }
   if (chain === "cinematheque" || chain === "other") {
-    const og = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)?.[1]
+    const og = ogContent(html, "image")
       // Sderot publishes no og:image; its film still is the one rendered at the "main_movie" size
       ?? /src="(\/sites\/default\/files\/styles\/main_movie\/[^"]+)"/i.exec(html)?.[1]?.replace(/^\//, "https://www.sderot-cin.org.il/").replace(/&amp;/g, "&");
-    const desc = /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1];
-    return { url: og && !CHROME.test(og) ? decode(og) : null, synopsis: desc ? decode(desc) : null };
+    // the festival prints the whole synopsis in a div named after the film, and only a slice of it
+    // in og:description
+    const body = /class="[^"]*movie_desc_heb[^"]*"[^>]*>([\s\S]{0,4000}?)<\/div>/i.exec(html)?.[1];
+    return {
+      url: og && !CHROME.test(og) ? decode(og) : null,
+      synopsis: cleanSynopsis(body) ?? cleanSynopsis(jsonLdDescription(html)) ?? cleanSynopsis(ogContent(html, "description")),
+    };
   }
   return { url: null, synopsis: null };
 }

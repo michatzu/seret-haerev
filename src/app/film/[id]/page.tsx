@@ -60,8 +60,8 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
             {film.synopsis && <p className="text-[15px] leading-[1.65] text-ink">{film.synopsis}</p>}
             {(film.director || film.cast?.length) && (
               <div className="flex flex-col gap-[3px] text-[13px] leading-[1.5] text-muted">
-                {film.director && <span>במאי: {film.director}</span>}
-                {film.cast?.length ? <span>{film.cast.slice(0, 6).join(", ")}</span> : null}
+                {film.director && <span>בימוי: {film.director}</span>}
+                {film.cast?.length ? <span>משחק: {film.cast.slice(0, 4).join(", ")}</span> : null}
               </div>
             )}
           </div>

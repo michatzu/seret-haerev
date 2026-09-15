@@ -16,7 +16,7 @@ const SETTLE_MS = 190;
  * React state: a re-render per pointermove makes a list of eighty cards stutter. React is only
  * involved once, at the end, when the film actually changes list.
  */
-export function SwipeToFile({ filmId, children }: { filmId: string; children: ReactNode }) {
+export function SwipeToFile({ filmId, title, children }: { filmId: string; title: string; children: ReactNode }) {
   const card = useRef<HTMLDivElement>(null);
   const right = useRef<HTMLDivElement>(null);
   const left = useRef<HTMLDivElement>(null);
@@ -74,7 +74,7 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
       const status = dx > 0 ? "want" : "skip";
       settle(dx > 0 ? window.innerWidth : -window.innerWidth, () => {
         g.current.dx = 0;
-        setStatus(filmId, status); // the card is hidden by the list stylesheet from here on
+        setStatus(filmId, status, title); // the card is hidden by the list stylesheet from here on
       });
       return;
     }
@@ -83,7 +83,7 @@ export function SwipeToFile({ filmId, children }: { filmId: string; children: Re
       schedule();
       if (card.current) card.current.style.willChange = "";
     });
-  }, [filmId, settle, schedule]);
+  }, [filmId, title, settle, schedule]);
 
   return (
     // data-film is on the outer element: hiding only the card would leave its wrapper, and

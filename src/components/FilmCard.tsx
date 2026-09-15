@@ -35,7 +35,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
   const href = `/film/${row.film.id}${search}`;
 
   return (
-    <SwipeToFile filmId={row.film.id}>
+    <SwipeToFile filmId={row.film.id} title={row.film.title}>
     <article className="flex flex-col gap-3 rounded-xl border border-line bg-card p-3.5">
       <div className="flex gap-3">
       <Link href={href} className="shrink-0" aria-label={row.film.title}>

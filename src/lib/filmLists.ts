@@ -53,14 +53,30 @@ function write(store: Store) {
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
+/** The most recent filing, so it can be undone; kept in memory only, it is not worth persisting. */
+let last: { id: string; title: string; status: FilmStatus; previous: FilmStatus | undefined; at: number } | null = null;
+export const lastChange = () => last;
+
 /** Sets the status, or clears it when the film already carries it. Returns the status now in force. */
-export function setStatus(id: string, status: FilmStatus): FilmStatus | undefined {
+export function setStatus(id: string, status: FilmStatus, title = ""): FilmStatus | undefined {
   const store = read();
-  const next = store[id] === status ? undefined : status;
+  const previous = store[id];
+  const next = previous === status ? undefined : status;
   if (next) store[id] = next;
   else delete store[id];
+  last = next ? { id, title, status: next, previous, at: Date.now() } : null;
   write(store);
   return next;
+}
+
+/** Puts the last filed film back where it was. */
+export function undoLast() {
+  if (!last) return;
+  const store = read();
+  if (last.previous) store[last.id] = last.previous;
+  else delete store[last.id];
+  last = null;
+  write(store);
 }
 
 export function clearList(status: FilmStatus) {
