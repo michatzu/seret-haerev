@@ -169,10 +169,15 @@ const HALL_ORDER = ["רגיל", "IMAX", "4DX", "ScreenX", "VIP", "3D", "35 מ״�
 export const hallOrder = (a: string, b: string) => HALL_ORDER.indexOf(a) - HALL_ORDER.indexOf(b);
 
 /** Does a screening pass every filter except distance? */
+/** Grace for a screening that has just begun: the box office usually still sells for a few minutes. */
+export const STARTED_GRACE_MS = 15 * 60_000;
+
 export function passes(s: Screening, film: Film, venue: Venue, q: Query, dates: Set<string>, now: Date): boolean {
   if (!dates.has(ymdInIsrael(new Date(s.startsAt)))) return false;
+  // A screening that has already run cannot be booked, and its ticket page is dead. It is worse
+  // than useless on the page: it makes every other time on the page look untrustworthy.
+  if (new Date(s.startsAt).getTime() < now.getTime() - STARTED_GRACE_MS) return false;
   if (!inTimeWindow(s.startsAt, q.from, now)) return false;
-  if (q.day !== "today" && new Date(s.startsAt).getTime() < now.getTime()) return false;
   if (q.venues.length && !q.venues.includes(venue.id)) return false;
   if (!matchesHalls(s, venue, q.halls)) return false;
   if (!matchesGenres(film, q.genres)) return false;

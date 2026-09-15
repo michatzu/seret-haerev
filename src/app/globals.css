@@ -20,6 +20,7 @@
   --ph: #eef1f4;
   --ph-ink: #98a2b3;
   --header-bg: #ffffff;
+  --warn: #a8641b;
   --overlay: rgba(16, 24, 40, 0.5);
   color-scheme: light;
 }
@@ -44,6 +45,7 @@
     --ph: #232830;
     --ph-ink: #6b7280;
     --header-bg: #171b22;
+    --warn: #e0a45c;
     --overlay: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -67,6 +69,7 @@
   --color-ph: var(--ph);
   --color-ph-ink: var(--ph-ink);
   --color-header: var(--header-bg);
+  --color-warn: var(--warn);
   --font-sans: var(--font-plex), "Arial Hebrew", system-ui, sans-serif;
   --font-serif: var(--font-frank), "David", Georgia, serif;
 }

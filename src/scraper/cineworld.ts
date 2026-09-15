@@ -106,6 +106,14 @@ function filmFromCw(chain: Chain, f: CwFilm): RawFilm {
   return raw;
 }
 
+/**
+ * The API hands back its own endpoint: https://tickets5.<chain>.co.il/api/order/<id>?lang=he, which
+ * answers 404 to a browser. The page a customer can actually open is the same path without /api.
+ */
+function customerBookingUrl(link: string): string {
+  return link.replace(/\/api\/order\//, "/order/");
+}
+
 export async function scrapeCineworld(t: Tenant, days = 8): Promise<AdapterResult> {
   const api = `${t.base}/${t.prefix}/data-api-service/v1/quickbook/${t.tenant}`;
   const until = ymdPlusDays(days);
@@ -147,7 +155,7 @@ export async function scrapeCineworld(t: Tenant, days = 8): Promise<AdapterResul
         attrs,
         dubbedLang,
         hall: e.auditorium || undefined,
-        bookingUrl: e.bookingLink,
+        bookingUrl: customerBookingUrl(e.bookingLink),
         soldOut: e.soldOut || undefined,
       });
     }

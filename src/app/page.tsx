@@ -7,7 +7,7 @@ import { getData } from "@/lib/data";
 import { getPlace } from "@/lib/location";
 import { genreOptions, venueOptions } from "@/lib/options";
 import { buildList, parseQuery, queryToSearch } from "@/lib/query";
-import { formatTime } from "@/lib/format";
+import { Freshness } from "@/components/Freshness";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export default async function Home(props: PageProps<"/">) {
         </div>
 
         <p className="flex flex-wrap justify-center gap-x-2 pt-4 text-center text-[12px] text-muted">
-          <span>הלוחות עודכנו ב-{formatTime(data.snapshot.generatedAt)}</span>
+          <Freshness generatedAt={data.snapshot.generatedAt} now={now} />
           <span>·</span>
           <span>לחיצה על שעה פותחת את הקופה של בית הקולנוע</span>
           <span>·</span>
