@@ -91,7 +91,8 @@ export interface Screening {
 }
 
 export interface SourceReport {
-  chain: Chain;
+  /** the adapter's own label: several adapters share the "other" chain */
+  chain: Chain | string;
   ok: boolean;
   films: number;
   screenings: number;

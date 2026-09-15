@@ -30,7 +30,8 @@ const HAIFA_HALLS: Record<string, { name: string; lat: number; lng: number; kind
   "32": { name: "אודיטוריום חיפה", lat: 32.803491, lng: 34.985062, kind: "boutique", address: "שדרות הנשיא 142, חיפה" },
   // the festival's main hall is the cinematheque we already list, so it keeps that venue id
   "33": { id: "cinematheque-haifa", name: "סינמטק חיפה", lat: 32.8073, lng: 34.9866, kind: "cinematheque", address: "שדרות הנשיא 142, חיפה" },
-  "34": { name: "מוזיאון טיקוטין", lat: 32.809349, lng: 34.985385, kind: "boutique", address: "שדרות הנשיא 89, חיפה" },
+  // the museum runs a cinema all year under its own ticketing; the festival borrows the same hall
+  "34": { id: "sm-tikotin", name: "קולנוע טיקוטין", lat: 32.809349, lng: 34.985385, kind: "boutique", address: "שדרות הנשיא 89, חיפה" },
   "35": { name: "קריגר (כרמל צרפתי)", lat: 32.820231, lng: 34.972153, kind: "boutique", address: "אליהו חכים, חיפה" },
   "5313": { name: "רחבת הסינמטק", lat: 32.8073, lng: 34.9866, kind: "outdoor", address: "שדרות הנשיא 142, חיפה" },
   "13310": { name: "מועדון הביט", lat: 32.8073, lng: 34.9866, kind: "boutique", address: "מתחם האודיטוריום, חיפה" },
@@ -98,7 +99,7 @@ export async function scrapeHaifaFestival(): Promise<AdapterResult> {
         const t = Date.parse(startsAt);
         if (!Number.isFinite(t) || t < now.getTime() - 6 * 3600_000 || t > horizon) continue;
 
-        venues.set(venueId, { id: venueId, chain: hall.id ? "cinematheque" : CHAIN, name: hall.name, city: "חיפה", address: hall.address, lat: hall.lat, lng: hall.lng, kind: hall.kind, url: "https://www.haifaff.co.il" });
+        venues.set(venueId, { id: venueId, chain: venueId.startsWith("cinematheque-") ? "cinematheque" : CHAIN, name: hall.name, city: "חיפה", address: hall.address, lat: hall.lat, lng: hall.lng, kind: hall.kind, url: "https://www.haifaff.co.il" });
         const { runtime, language } = parseInfo(s[4] ?? "");
         const tail = s[5] ?? "";
         const order = ORDER_LINK.exec(tail)?.[1];
@@ -130,7 +131,7 @@ export async function scrapeHaifaFestival(): Promise<AdapterResult> {
 /* ------------------------------------------------------------------ entry */
 
 export async function scrapeFestivals(): Promise<AdapterResult> {
-  const parts = await Promise.allSettled([scrapeHaifaFestival()]);
+  const parts = await Promise.allSettled([scrapeHaifaFestival(), scrapeJerusalemTheatre()]);
   for (const p of parts) if (p.status === "rejected") console.warn("  festival source failed:", p.reason instanceof Error ? p.reason.message : p.reason);
   const ok = parts.filter((p): p is PromiseFulfilledResult<AdapterResult> => p.status === "fulfilled").map((p) => p.value);
   return {
@@ -139,4 +140,73 @@ export async function scrapeFestivals(): Promise<AdapterResult> {
     films: ok.flatMap((r) => r.films),
     screenings: ok.flatMap((r) => r.screenings),
   };
+}
+
+/* ----------------------------------------------- Jerusalem Theatre (a theatre that screens films) */
+
+const JT_BOARD = "https://www.jerusalem-theatre.co.il/na_ajax.php?action=getBoard";
+const JT_VENUE: Venue = {
+  id: "jerusalem-theatre", chain: CHAIN, name: "תיאטרון ירושלים", city: "ירושלים",
+  address: "דוד מרכוס 20", lat: 31.768918, lng: 35.215517, kind: "boutique", url: "https://www.jerusalem-theatre.co.il",
+};
+
+interface JtDate { date?: number; hall?: string; ticket?: string; status?: string; remark?: string }
+interface JtItem {
+  id?: string;
+  title?: string;
+  length?: string;
+  img?: string;
+  link?: string;
+  "parent-group"?: string;
+  dates?: JtDate[];
+}
+
+export async function scrapeJerusalemTheatre(days = 45): Promise<AdapterResult> {
+  // items is an object keyed by id, not an array
+  const board = JSON.parse(await getText(JT_BOARD, { headers: { "user-agent": UA } }, 30_000)) as { items?: Record<string, JtItem> | JtItem[] };
+  const films = new Map<string, RawFilm>();
+  const screenings: RawScreening[] = [];
+  const now = Date.now();
+  const horizon = now + days * 864e5;
+
+  const items = Array.isArray(board.items) ? board.items : Object.values(board.items ?? {});
+  for (const item of items) {
+    if (item["parent-group"] !== "eventGrp_cinema") continue;
+    const title = (item.title ?? "").replace(/\s+/g, " ").trim();
+    if (!title || !item.dates?.length) continue;
+    const filmId = `jt-${item.id ?? shortHash(title)}`;
+    const minutes = Number(/(\d{2,3})\s*דקות/.exec(item.length ?? "")?.[1]);
+
+    for (const d of item.dates) {
+      if (!d.date || d.status === "cancelled") continue;
+      // the board's number looks like a unix timestamp but carries Israel wall-clock time: the
+      // theatre's own page shows 18:00 where a true epoch would read 21:00
+      const wall = new Date(d.date * 1000);
+      const startsAt = zonedToIso(wall.getUTCFullYear(), wall.getUTCMonth() + 1, wall.getUTCDate(), wall.getUTCHours(), wall.getUTCMinutes());
+      const at = Date.parse(startsAt);
+      if (!Number.isFinite(at) || at < now - 3600_000 || at > horizon) continue;
+      if (!films.has(filmId)) {
+        films.set(filmId, {
+          chain: CHAIN,
+          sourceId: filmId,
+          title,
+          runtime: Number.isFinite(minutes) && minutes > 30 ? minutes : undefined,
+          posterUrl: item.img || undefined,
+          isEvent: looksLikeEvent(title),
+        });
+      }
+      screenings.push({
+        chain: CHAIN,
+        sourceId: `jt-${d.ticket ?? `${filmId}-${d.date}`}`,
+        sourceFilmId: filmId,
+        venueId: JT_VENUE.id,
+        startsAt,
+        attrs: [],
+        hall: d.hall ? `אולם ${d.hall}` : undefined,
+        // the box office runs on a host that does not resolve publicly, so the film's own page it is
+        bookingUrl: item.link ? decode(item.link) : "https://www.jerusalem-theatre.co.il",
+      });
+    }
+  }
+  return { chain: CHAIN, venues: screenings.length ? [JT_VENUE] : [], films: [...films.values()], screenings };
 }

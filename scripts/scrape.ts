@@ -6,11 +6,12 @@ import { scrapeCinemaCity, scrapeHot, scrapeMovieland } from "@/scraper/modulus"
 import { scrapeLev } from "@/scraper/lev";
 import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { scrapePopup } from "@/scraper/popup";
+import { scrapeSmarticket } from "@/scraper/smarticket";
 import { buildSnapshot, mergeByTmdbId } from "@/scraper/normalize";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
 
-const tasks: { chain: Chain; run: () => Promise<AdapterResult> }[] = [
+const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }[] = [
   { chain: "planet", run: () => scrapeCineworld(PLANET) },
   { chain: "ravhen", run: () => scrapeCineworld(RAVHEN) },
   { chain: "cinemacity", run: scrapeCinemaCity },
@@ -18,12 +19,13 @@ const tasks: { chain: Chain; run: () => Promise<AdapterResult> }[] = [
   { chain: "movieland", run: scrapeMovieland },
   { chain: "lev", run: scrapeLev },
   { chain: "cinematheque", run: scrapeCinematheques },
-  { chain: "other", run: scrapePopup },
+  { chain: "other", label: "popup", run: scrapePopup },
+  { chain: "other", label: "smarticket", run: scrapeSmarticket },
 ];
 
 async function main() {
   const only = process.argv.slice(2);
-  const selected = only.length ? tasks.filter((t) => only.includes(t.chain)) : tasks;
+  const selected = only.length ? tasks.filter((t) => only.includes(t.chain) || (t.label && only.includes(t.label))) : tasks;
   const results: AdapterResult[] = [];
   const reports: SourceReport[] = [];
   await Promise.all(
@@ -32,9 +34,9 @@ async function main() {
       try {
         const r = await t.run();
         results.push(r);
-        reports.push({ chain: t.chain, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 });
+        reports.push({ chain: t.label ?? t.chain, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 });
       } catch (e) {
-        reports.push({ chain: t.chain, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) });
+        reports.push({ chain: t.label ?? t.chain, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) });
       }
     }),
   );
