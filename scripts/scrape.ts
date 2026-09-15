@@ -7,6 +7,7 @@ import { scrapeLev } from "@/scraper/lev";
 import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { scrapePopup } from "@/scraper/popup";
 import { scrapeSmarticket } from "@/scraper/smarticket";
+import { scrapeSeret } from "@/scraper/seret";
 import { buildSnapshot, mergeByTmdbId } from "@/scraper/normalize";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
@@ -21,6 +22,7 @@ const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }
   { chain: "cinematheque", run: scrapeCinematheques },
   { chain: "other", label: "popup", run: scrapePopup },
   { chain: "other", label: "smarticket", run: scrapeSmarticket },
+  { chain: "other", label: "seret", run: scrapeSeret },
 ];
 
 async function main() {
