@@ -42,8 +42,8 @@ export function SearchBox({ q }: { q: Query }) {
           it and the pair can be centred together */}
       {!text && (
         <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-[15px] text-muted">
-          <span className="text-[17px] leading-none">🎬</span>
           <span>אקשן</span>
+          <span className="text-[17px] leading-none">🎬</span>
         </span>
       )}
       <input

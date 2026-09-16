@@ -31,7 +31,7 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
  */
 interface PopupVenue extends Venue { match: RegExp }
 const POPUP_VENUES: PopupVenue[] = [
-  { id: "pop-hapisga", chain: CHAIN, name: "קולנוע הפסגה", city: "תל אביב", address: "גן הפסגה, יפו העתיקה", lat: 32.05315, lng: 34.75225, kind: "outdoor", url: "https://www.tel-aviv.gov.il", match: /gan ha.?pisga|hapisga cinema|גן הפסגה|קולנוע הפסגה/i },
+  { id: "pop-hapisga", chain: CHAIN, name: "גן הפסגה", city: "תל אביב", address: "מפרץ שלמה 8, יפו העתיקה", lat: 32.05315, lng: 34.75225, kind: "outdoor", url: "https://www.tel-aviv.gov.il", match: /gan ha.?pisga|hapisga cinema|גן הפסגה|קולנוע הפסגה/i },
   { id: "pop-radical", chain: CHAIN, name: "בית רדיקל", city: "תל אביב", address: "מרחב 3426, התחיה 26", lat: 32.05672, lng: 34.76249, kind: "boutique", url: "https://radical.org.il", match: /beit radical|בית רדיקל/i },
   { id: "pop-levontin", chain: CHAIN, name: "לבונטין 7", city: "תל אביב", address: "לבונטין 7", lat: 32.06297, lng: 34.77557, kind: "boutique", url: "https://levontin7.com", match: /levontin ?7|לבונטין ?7/i },
   { id: "pop-tarab", chain: CHAIN, name: "טראב", city: "תל אביב", address: "הרצל 84", lat: 32.05614, lng: 34.76889, kind: "boutique", match: /\btarab\b|טראב/i },
