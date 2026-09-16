@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AdapterResult, Chain, SourceReport } from "@/lib/types";
+import type { AdapterResult, Chain, Snapshot, SourceReport } from "@/lib/types";
 import { PLANET, RAVHEN, scrapeCineworld } from "@/scraper/cineworld";
 import { scrapeCinemaCity, scrapeHot, scrapeMovieland } from "@/scraper/modulus";
 import { scrapeLev } from "@/scraper/lev";
@@ -9,6 +9,7 @@ import { scrapePopup } from "@/scraper/popup";
 import { scrapeSmarticket } from "@/scraper/smarticket";
 import { scrapeSeret } from "@/scraper/seret";
 import { buildSnapshot, mergeByTmdbId } from "@/scraper/normalize";
+import { carryForward } from "@/scraper/carry";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
 
@@ -43,6 +44,13 @@ async function main() {
     }),
   );
   const snapshot = buildSnapshot(results, reports.sort((a, b) => a.chain.localeCompare(b.chain)));
+
+  // a source that failed should not take its cinemas off the site: keep what it said last time
+  const previous = await readFile(path.join(process.cwd(), "data", "snapshot.json"), "utf8")
+    .then((t) => JSON.parse(t) as Snapshot)
+    .catch(() => null);
+  const carried = carryForward(snapshot, previous);
+  if (carried.screenings) console.log(`carried: ${carried.screenings} screenings at ${carried.venues} venues whose source failed, from ${carried.from}`);
   const t1 = Date.now();
   const enriched = await enrichFilms(snapshot.films);
   const mergedByTmdb = mergeByTmdbId(snapshot);

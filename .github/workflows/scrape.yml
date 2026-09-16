@@ -23,12 +23,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Restore enrichment caches from the data branch
+      - name: Restore the published snapshot and caches from the data branch
         run: |
           git fetch origin data:data 2>/dev/null || true
           git show data:enrich-cache.json > data/enrich-cache.json 2>/dev/null || true
           git show data:poster-cache.json > data/poster-cache.json 2>/dev/null || true
           git show data:geocode-cache.json > data/geocode-cache.json 2>/dev/null || true
+          # the published snapshot is what a failed source is carried forward from, and it is far
+          # fresher than the copy committed to main
+          git show data:snapshot.json > data/snapshot.json 2>/dev/null || true
       - name: Scrape
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
