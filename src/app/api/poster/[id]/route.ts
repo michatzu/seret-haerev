@@ -16,8 +16,11 @@ const MIN_BYTES = 900;
 const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect width="200" height="300" fill="#e6e3dd"/><g fill="none" stroke="#b4ada1" stroke-width="6" stroke-linejoin="round"><rect x="62" y="112" width="76" height="60" rx="6"/><path d="M62 130h76M78 112v18M102 112v18M126 112v18"/></g></svg>`;
 
 function placeholder(): Response {
+  // Barely cached on purpose. A poster can be missing for a minute — the schedule has just been
+  // republished and this film is newer than the copy this server holds, or the cinema's own image
+  // host blinked — and an hour of cached emptiness turns that minute into an afternoon.
   return new Response(PLACEHOLDER, {
-    headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=3600, s-maxage=3600" },
+    headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=60, s-maxage=60" },
   });
 }
 
