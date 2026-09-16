@@ -74,8 +74,17 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
     if (Math.abs(dx) >= COMMIT_PX) {
       const status = dx > 0 ? "want" : "skip";
       settle(dx > 0 ? window.innerWidth : -window.innerWidth, () => {
+        // Put the card back where it belongs before it is hidden. The stylesheet only hides it, so
+        // a transform left behind is still there when an undo brings the card back, which drops it
+        // a screen's width to one side and widens the page with it.
         g.current.dx = 0;
-        setStatus(filmId, status, title); // the card is hidden by the list stylesheet from here on
+        const el = card.current;
+        if (el) {
+          el.style.transition = "";
+          el.style.transform = "";
+          el.style.willChange = "";
+        }
+        setStatus(filmId, status, title);
         track.list(status, title);
       });
       return;

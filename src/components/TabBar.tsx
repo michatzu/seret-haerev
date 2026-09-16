@@ -21,7 +21,7 @@ export function TabBar() {
   ];
 
   return (
-    <nav aria-label="ניווט ראשי" className="sticky bottom-0 z-30 mt-auto border-t border-line bg-header pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5">
+    <nav aria-label="ניווט ראשי" className="sticky bottom-0 z-30 mt-auto border-t border-line bg-header pb-[max(10px,env(safe-area-inset-bottom))] pt-1.5">
       <div className="mx-auto flex max-w-[520px]">
         {tabs.map(({ href, label, Icon, on, count }) => (
           <Link key={href} href={href} aria-current={on ? "page" : undefined}

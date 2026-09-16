@@ -1,10 +1,11 @@
 /**
  * A source that fails must not empty its cinemas off the site.
  *
- * Some of these sites answer a request from a data centre with 403 while answering the same request
- * from a home connection, so an hourly refresh can lose a chain for reasons that have nothing to do
- * with the cinema. Rather than publish a snapshot that quietly drops Movieland or Beit Gabriel, the
- * previous schedule for the venues that vanished is carried forward.
+ * Movieland, seret.co.il and Secret Tel Aviv sit behind Cloudflare's bot challenge, which passes a
+ * home connection and stops any data centre, so the hourly refresh on GitHub cannot reach them at
+ * all. That is a protection their operators chose and this project does not try to defeat it; what
+ * it does instead is refuse to publish a snapshot that quietly drops those cinemas, by carrying
+ * their previous schedule forward.
  *
  * It is carried for a day at most. A screening from a stale schedule is a small risk; a screening
  * from a schedule nobody has checked in a week is a broken promise, and the list is better off

@@ -85,11 +85,20 @@
 
 html {
   background: var(--bg);
+  /* Safari's toolbar grows and shrinks as you scroll, and 100vh ignores it, so a bar pinned to the
+     bottom ends up underneath it. dvh follows the toolbar; svh is the safe floor for browsers
+     without dvh. */
+  min-height: 100svh;
+  min-height: 100dvh;
 }
 
 body {
   /* a horizontal drag on a card must never become the browser's back gesture */
   overscroll-behavior-x: none;
+  /* a card mid-swipe reaches past the edge; letting the page widen for it shifts everything */
+  overflow-x: clip;
+  min-height: 100svh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
