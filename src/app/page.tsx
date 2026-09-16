@@ -6,7 +6,7 @@ import { FilmCard } from "@/components/FilmCard";
 import { LazyGroup } from "@/components/LazyGroup";
 import { getData } from "@/lib/data";
 import { getPlace } from "@/lib/location";
-import { genreOptions, venueOptions } from "@/lib/options";
+import { genreOptions, searchExample, venueOptions } from "@/lib/options";
 import { buildList, parseQuery, queryToSearch } from "@/lib/query";
 import { Freshness } from "@/components/Freshness";
 
@@ -24,7 +24,7 @@ export default async function Home(props: PageProps<"/">) {
     <>
       <Header q={q} place={place} venues={venueOptions(data.venues.values(), place)} genres={genreOptions(data.films.values())} />
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-3 px-4 pb-10 pt-3.5">
-        <SearchBox q={q} />
+        <SearchBox q={q} example={searchExample(data.films.values())} />
         <SortSegment q={q} />
 
         {list.main.length === 0 && (

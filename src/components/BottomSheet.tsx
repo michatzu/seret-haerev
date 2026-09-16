@@ -54,8 +54,13 @@ export function CheckOption({ checked, onToggle, children, first, hint }: { chec
   );
 }
 
+/** Confirms a sheet. "אקשן" is what a director says to start, which is the same thing this does. */
 export function DoneButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="h-11 w-full rounded-xl bg-accent text-[15px] font-semibold text-accent-ink">סיום</button>
+    <button type="button" onClick={onClick}
+      className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-accent text-[15px] font-semibold text-accent-ink">
+      <span>אקשן</span>
+      <span className="text-[17px] leading-none" aria-hidden>🎬</span>
+    </button>
   );
 }
