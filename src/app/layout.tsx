@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { ListStyles } from "@/components/ListStyles";
 import { UndoBar } from "@/components/UndoBar";
 import { TabBar } from "@/components/TabBar";
+import { Analytics } from "@vercel/analytics/next";
+import { Tracking } from "@/components/Tracking";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
 import "./globals.css";
 
@@ -42,6 +44,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <TabBar />
         <UndoBar />
+        <Tracking />
+        <Analytics />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { Bookmark, BookmarkFilled, Check, Eye, EyeOff } from "./Icons";
 import { setStatus, useFilmLists, type FilmStatus } from "@/lib/filmLists";
+import { track } from "@/lib/track";
 
 /**
  * The three list buttons, in the order the hand expects them: "want" on the right, "watched" in the
@@ -31,7 +32,7 @@ export function FilmActions({ filmId, title, size = "card" }: { filmId: string; 
             type="button"
             aria-pressed={active}
             aria-label={`${label}: ${title}`}
-            onClick={() => setStatus(filmId, status, title)}
+            onClick={() => { const now = setStatus(filmId, status, title); if (now) track.list(now, title); }}
             className={`flex min-w-0 flex-1 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border text-[12px] font-medium transition-colors ${
               big ? "h-11 text-[14px]" : "h-[34px]"
             } ${active ? "border-accent bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent" : "border-line text-muted"}`}

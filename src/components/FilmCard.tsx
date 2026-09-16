@@ -56,7 +56,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
               <span className="truncate font-medium text-ink">{v.venue.name}</span>
               <span className="text-muted">{formatDistance(v.distanceKm)}</span>
               <span className="ms-auto flex shrink-0 gap-1.5">
-                {isMultiDay(q.day) ? <WeekPills ss={v.screenings} /> : <DayPills ss={v.screenings} />}
+                {isMultiDay(q.day) ? <WeekPills ss={v.screenings} /> : <DayPills ss={v.screenings} film={row.film.title} venue={v.venue.name} />}
               </span>
             </div>
           ))}
@@ -76,14 +76,14 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
 }
 
 /** Today / single day: next + prime screening; only one when a tag needs the room. */
-function DayPills({ ss }: { ss: Screening[] }) {
+function DayPills({ ss, film, venue }: { ss: Screening[]; film: string; venue: string }) {
   let picked = pickTimes(ss, 2);
   const tags = picked.map(screeningTag);
   if (picked.length > 1 && tags.some(Boolean)) picked = [picked[0]];
   return (
     <>
       {picked.map((s) => (
-        <TimePill key={s.id} s={s} tag={screeningTag(s)} />
+        <TimePill key={s.id} s={s} tag={screeningTag(s)} film={film} venue={venue} />
       ))}
     </>
   );

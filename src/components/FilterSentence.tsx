@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { BottomSheet, CheckOption, DoneButton, SheetOption } from "./BottomSheet";
+import { track } from "@/lib/track";
 import { Caret } from "./Icons";
 import { formatDistance } from "@/lib/geo";
 import { GENRES } from "@/lib/genres";
@@ -13,6 +14,18 @@ import {
 } from "@/lib/query";
 
 export interface VenueOption { id: string; name: string; km: number }
+
+/** What the filter was set to, in the words the interface itself uses. */
+function describe(key: Key, q: Query): string {
+  switch (key) {
+    case "day": return q.day;
+    case "from": return q.from;
+    case "radius": return q.radius;
+    case "halls": return q.halls.join(",") || "all";
+    case "venues": return String(q.venues.length || "all");
+    case "genres": return q.genres.join(",") || "all";
+  }
+}
 type Key = "day" | "from" | "radius" | "halls" | "venues" | "genres";
 interface Word { key: Key; label: string; changed: boolean }
 
@@ -32,6 +45,7 @@ export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Qu
   const close = useCallback(() => setOpen(null), []);
 
   const go = (next: Query, keepOpen = false) => {
+    if (open) track.filter(open, describe(open, next));
     if (!keepOpen) setOpen(null);
     router.replace(`${pathname}${queryToSearch(next)}`, { scroll: false });
   };

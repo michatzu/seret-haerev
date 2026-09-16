@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Close } from "./Icons";
 import { queryToSearch, type Query } from "@/lib/query";
+import { track } from "@/lib/track";
 
 const DEBOUNCE_MS = 250;
 
@@ -31,6 +32,7 @@ export function SearchBox({ q }: { q: Query }) {
     if (text === applied.current) return;
     const id = window.setTimeout(() => {
       applied.current = text;
+      track.search(text);
       router.replace(`${pathname}${queryToSearch({ ...q, q: text, kids: false, small: false, far: false })}`, { scroll: false });
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(id);

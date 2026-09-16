@@ -2,7 +2,7 @@ import type { Screening } from "@/lib/types";
 import { formatTime } from "@/lib/format";
 
 /** A screening time that opens the chain's seat selection for that screening. */
-export function TimePill({ s, tag, big = false, label }: { s?: Screening; tag?: string; big?: boolean; label?: string }) {
+export function TimePill({ s, tag, big = false, label, film, venue }: { s?: Screening; tag?: string; big?: boolean; label?: string; film?: string; venue?: string }) {
   const text = label ?? (s ? formatTime(s.startsAt) : "");
   const cls = `tabular inline-flex items-center gap-1.5 rounded-md bg-pill-bg font-semibold text-pill-ink ${big ? "h-[38px] px-3 text-[15px]" : "h-[26px] px-2 text-[13px]"}`;
   const inner = (
@@ -13,7 +13,8 @@ export function TimePill({ s, tag, big = false, label }: { s?: Screening; tag?: 
   );
   if (!s) return <span className={cls}>{inner}</span>;
   return (
-    <a href={s.bookingUrl} target="_blank" rel="noopener noreferrer" className={cls} title="לרכישת כרטיסים">
+    <a href={s.bookingUrl} target="_blank" rel="noopener noreferrer" className={cls} title="לרכישת כרטיסים"
+      data-booking data-film={film} data-venue={venue} data-hall={tag ?? "רגיל"}>
       {inner}
     </a>
   );

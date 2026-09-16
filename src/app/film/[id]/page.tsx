@@ -75,9 +75,9 @@ export default async function FilmPage(props: PageProps<"/film/[id]">) {
         )}
 
         <div className="flex flex-col gap-2.5">
-          {open.map((v) => (multiDay ? <WeekVenue key={v.venue.id} v={v} /> : <VenueCard key={v.venue.id} venue={v.venue} distanceKm={v.distanceKm} screenings={v.screenings} />))}
+          {open.map((v) => (multiDay ? <WeekVenue key={v.venue.id} v={v} /> : <VenueCard key={v.venue.id} venue={v.venue} distanceKm={v.distanceKm} screenings={v.screenings} film={film.title} />))}
           <LazyGroup label={near.length > OPEN_VENUES ? "עוד בתי קולנוע" : "מוקרן רחוק יותר"} count={rest.length} param="far" open={q.far}>
-            {q.far && rest.map((v) => (multiDay ? <WeekVenue key={v.venue.id} v={v} /> : <VenueCard key={v.venue.id} venue={v.venue} distanceKm={v.distanceKm} screenings={v.screenings} />))}
+            {q.far && rest.map((v) => (multiDay ? <WeekVenue key={v.venue.id} v={v} /> : <VenueCard key={v.venue.id} venue={v.venue} distanceKm={v.distanceKm} screenings={v.screenings} film={film.title} />))}
           </LazyGroup>
         </div>
       </main>
@@ -104,7 +104,7 @@ function WeekVenue({ v }: { v: { venue: { id: string; name: string }; distanceKm
             <span className="w-[52px] shrink-0 text-[12px] font-medium text-muted">{dayOrDate(ss[0].startsAt)}</span>
             <div className="flex flex-wrap gap-2">
               {ss.slice(0, 4).map((s) => (
-                <a key={s.id} href={s.bookingUrl} target="_blank" rel="noopener noreferrer" className="tabular inline-flex h-[38px] items-center rounded-md bg-pill-bg px-3 text-[15px] font-semibold text-pill-ink">{formatTime(s.startsAt)}</a>
+                <a key={s.id} href={s.bookingUrl} target="_blank" rel="noopener noreferrer" data-booking data-venue={v.venue.name} data-hall="רגיל" className="tabular inline-flex h-[38px] items-center rounded-md bg-pill-bg px-3 text-[15px] font-semibold text-pill-ink">{formatTime(s.startsAt)}</a>
               ))}
               {ss.length > 4 && <span className="inline-flex h-[38px] items-center rounded-md bg-plus-bg px-2.5 text-[14px] font-medium text-plus-ink">+{ss.length - 4}</span>}
             </div>

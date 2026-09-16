@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, type ReactNode } from "react";
 import { setStatus } from "@/lib/filmLists";
+import { track } from "@/lib/track";
 
 const COMMIT_PX = 78; // past this the gesture counts
 const ENGAGE_PX = 10; // below this it might still be a scroll
@@ -75,6 +76,7 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
       settle(dx > 0 ? window.innerWidth : -window.innerWidth, () => {
         g.current.dx = 0;
         setStatus(filmId, status, title); // the card is hidden by the list stylesheet from here on
+        track.list(status, title);
       });
       return;
     }
