@@ -14,7 +14,7 @@ const DEBOUNCE_MS = 250;
  * a film and coming back and can be shared; typing is debounced so a search costs one request
  * rather than one per letter.
  */
-export function SearchBox({ q, example }: { q: Query; example: string }) {
+export function SearchBox({ q }: { q: Query }) {
   const router = useRouter();
   const pathname = usePathname();
   const [text, setText] = useState(q.q);
@@ -44,7 +44,7 @@ export function SearchBox({ q, example }: { q: Query; example: string }) {
           it and the pair can be centred together */}
       {!text && (
         <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-[15px] text-muted">
-          <span>{example}</span>
+          <span>מחפשים סרט?</span>
           <span className="text-[17px] leading-none">🎬</span>
         </span>
       )}
