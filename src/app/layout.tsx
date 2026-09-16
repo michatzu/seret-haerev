@@ -21,10 +21,36 @@ const frank = Frank_Ruhl_Libre({
   display: "swap",
 });
 
+const TITLE = "סרט הערב";
+const DESCRIPTION = "מה מוקרן לידך היום, בכל בתי הקולנוע בישראל, במקום אחד.";
+
+/**
+ * Every share preview needs an absolute address for the image, and a relative one silently
+ * becomes localhost. Vercel hands us the production domain; a domain of our own would go in
+ * NEXT_PUBLIC_SITE_URL and win.
+ */
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: { default: "סרט הערב", template: "%s · סרט הערב" },
-  description: "מה מוקרן לידך היום, בכל בתי הקולנוע בישראל, במקום אחד.",
-  applicationName: "סרט הערב",
+  metadataBase: new URL(siteUrl),
+  title: { default: TITLE, template: `%s · ${TITLE}` },
+  description: DESCRIPTION,
+  applicationName: TITLE,
+  // So "add to home screen" opens without browser chrome, under the right name.
+  appleWebApp: { capable: true, title: TITLE, statusBarStyle: "black-translucent" },
+  openGraph: {
+    type: "website",
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: "he_IL",
+    url: "/",
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {
