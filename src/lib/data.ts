@@ -26,15 +26,20 @@ function index(snapshot: Snapshot, key: string): Loaded {
 /** Loads the snapshot: remote URL with 10-minute revalidation, else data/snapshot.json (re-read when it changes). */
 export async function getData(): Promise<Loaded> {
   if (URL) {
-    const res = await fetch(URL, { next: { revalidate: REVALIDATE_SECONDS } });
-    if (!res.ok) {
+    try {
+      const res = await fetch(URL, { next: { revalidate: REVALIDATE_SECONDS } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const snapshot = (await res.json()) as Snapshot;
+      if (cache && cache.key === snapshot.generatedAt) return cache;
+      cache = index(snapshot, snapshot.generatedAt);
+      return cache;
+    } catch (e) {
+      // The remote snapshot is the fresher copy, not the only one. Before the scrape has ever run
+      // the branch does not exist yet, and later it could be briefly unreachable; either way the
+      // schedule shipped with the build is far better than an error page.
       if (cache) return cache;
-      throw new Error(`snapshot fetch failed: HTTP ${res.status}`);
+      console.warn("snapshot fetch failed, falling back to the bundled copy:", e instanceof Error ? e.message : e);
     }
-    const snapshot = (await res.json()) as Snapshot;
-    if (cache && cache.key === snapshot.generatedAt) return cache;
-    cache = index(snapshot, snapshot.generatedAt);
-    return cache;
   }
   const st = await stat(FILE);
   const key = String(st.mtimeMs);
