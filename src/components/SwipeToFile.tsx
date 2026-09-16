@@ -99,7 +99,7 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
         </div>
         <div ref={right} style={{ opacity: 0 }} className="flex items-center gap-1.5 text-[13px] font-medium text-accent">
           <BookmarkGlyph />
-          <span>רוצה לראות</span>
+          <span>מעניין</span>
         </div>
       </div>
 

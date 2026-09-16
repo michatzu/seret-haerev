@@ -114,7 +114,7 @@ export function genresLabel(keys: string[]): string {
   if (keys.length === 1) return genreLabel(keys[0]);
   return `${keys.length} ז׳אנרים`;
 }
-export const SORT_LABELS: Record<SortKey, string> = { dist: "לפי קרבה", time: "לפי שעה", imdb: "לפי IMDb" };
+export const SORT_LABELS: Record<SortKey, string> = { dist: "לפי מרחק", time: "לפי שעה", imdb: "לפי IMDb" };
 
 
 /* ---- free-text search ---- */

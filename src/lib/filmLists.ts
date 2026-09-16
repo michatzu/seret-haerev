@@ -12,7 +12,7 @@ export type FilmStatus = "want" | "watched" | "skip";
 export const STATUSES: FilmStatus[] = ["want", "watched", "skip"];
 
 export const STATUS_LABEL: Record<FilmStatus, string> = {
-  want: "רוצה לראות",
+  want: "מעניין",
   watched: "צפיתי",
   skip: "לא מעניין",
 };

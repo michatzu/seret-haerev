@@ -1,6 +1,6 @@
 /** Canonical genres: chains and TMDB use different Hebrew words; the site uses one vocabulary. */
 export const GENRES: { key: string; label: string }[] = [
-  { key: "action", label: "אקשן" },
+  { key: "action", label: "פעולה" },
   { key: "adventure", label: "הרפתקאות" },
   { key: "animation", label: "אנימציה" },
   { key: "biography", label: "ביוגרפיה" },

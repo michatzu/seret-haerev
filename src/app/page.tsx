@@ -28,7 +28,7 @@ export default async function Home(props: PageProps<"/">) {
         <SortSegment q={q} />
 
         {list.main.length === 0 && (
-          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה. נסו להרחיב את המרחק או את השעה.</div>
+          <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה. אפשר להרחיב את המרחק או את השעה.</div>
         )}
 
         <div className="flex flex-col gap-2.5">
@@ -38,7 +38,7 @@ export default async function Home(props: PageProps<"/">) {
           <LazyGroup label="לילדים ומדובבים" count={list.kids.length} param="kids" open={q.kids}>
             {q.kids && list.kids.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
           </LazyGroup>
-          <LazyGroup label="סרטים קטנים" count={list.small.length} param="small" open={q.small}>
+          <LazyGroup label="סרטים שלא מצאנו את הכרזה שלהם" count={list.small.length} param="small" open={q.small}>
             {q.small && list.small.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
           </LazyGroup>
           <LazyGroup label="מוקרן רחוק יותר" count={list.farther.length} param="far" open={q.far}>

@@ -40,6 +40,13 @@ export const CITIES: Place[] = [
   { label: "כרמיאל", lat: 32.9186, lng: 35.2952 },
   { label: "נהריה", lat: 33.0058, lng: 35.098 },
   { label: "קריות", lat: 32.8316, lng: 35.0778 },
+  { label: "טבריה", lat: 32.7922, lng: 35.5312 },
+  { label: "עמק הירדן וצמח", lat: 32.7045, lng: 35.5865 },
+  { label: "בית שאן", lat: 32.4968, lng: 35.4997 },
+  { label: "צפת", lat: 32.9646, lng: 35.4960 },
+  { label: "ראש פינה", lat: 32.9687, lng: 35.5422 },
+  { label: "קרית שמונה", lat: 33.2074, lng: 35.5695 },
+  { label: "קצרין", lat: 32.9908, lng: 35.6903 },
 ];
 
 export const DEFAULT_PLACE: Place = CITIES[0];

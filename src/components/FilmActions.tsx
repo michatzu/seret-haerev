@@ -11,7 +11,7 @@ import { track } from "@/lib/track";
  * questions, so the resting state is a hairline outline and only the chosen one takes colour.
  */
 const ACTIONS: { status: FilmStatus; label: string; off: typeof Eye; on: typeof Eye }[] = [
-  { status: "want", label: "רוצה", off: Bookmark, on: BookmarkFilled },
+  { status: "want", label: "מעניין", off: Bookmark, on: BookmarkFilled },
   { status: "watched", label: "צפיתי", off: Eye, on: Check },
   { status: "skip", label: "לא מעניין", off: EyeOff, on: EyeOff },
 ];

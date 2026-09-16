@@ -3,7 +3,6 @@ import type { AdapterResult, Chain, Film, RawFilm, Screening, Snapshot, SourceRe
 import { normalizeTitle, shortHash } from "@/lib/text";
 import { canonicalGenres, genreLabel } from "@/lib/genres";
 
-const KIDS_GENRES = ["אנימציה", "לכל המשפחה", "ילדים", "משפחה"];
 /** Preferred source order for posters and metadata. */
 const CHAIN_RANK: Chain[] = ["planet", "ravhen", "movieland", "cinemacity", "hot", "lev", "cinematheque", "other"];
 const rank = (c: Chain) => CHAIN_RANK.indexOf(c);
@@ -141,8 +140,22 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
     const isIsraeli = arr.some((f) => f.isIsraeli) || (pick("language") === "he" && dubbedShare < 0.5);
     const genreKeys = canonicalGenres(rawGenres, isIsraeli);
     const genres = genreKeys.filter((k) => k !== "israeli").map(genreLabel);
-    const dubbedLabel = arr.some((f) => /דיבוב\s+עברי|מדובב\s+לעברית|\(\s*מדובב(ת)?\s*\)/.test(f.title));
-    const isKids = dubbedShare >= 0.5 || dubbedLabel || rawGenres.some((g) => KIDS_GENRES.includes(g)) || arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title));
+    // Anything whose title says it is dubbed belongs with the dubbed films, however it is worded.
+    const dubbedLabel = arr.some((f) => /מדובב|מדובבת|דיבוב/.test(f.title));
+    // Animation is not the same thing as a children's film: Toy Story and Coyote vs. Acme play to
+    // adults in the original too, and burying them under "לילדים ומדובבים" hides them from the
+    // people looking for them. What actually marks a screening as being for young children is that
+    // it is dubbed into Hebrew, so that is the test; a film that only ever plays dubbed goes there
+    // whatever its genre, and one that also plays with subtitles stays in the main list.
+    // The group is for films you can only see dubbed. An animation that also plays with subtitles
+    // has an adult audience too, and burying Toy Story or Coyote vs. Acme there hides it from the
+    // people looking for it; its dubbed times still carry a "מדובב" tag in the main list.
+    const onlyDubbed = dubbedShare >= 0.999;
+    const isKids =
+      onlyDubbed ||
+      /מדובב|מדובבת/.test(title) ||
+      (dubbedLabel && arr.length === 1) ||
+      arr.some((f) => f.isKids && f.chain === "cinemacity" && /g\s*kids/i.test(f.title) && dubbedShare > 0.9);
     films.push({
       id,
       title,
