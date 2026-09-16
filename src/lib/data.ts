@@ -9,6 +9,8 @@ let cache: Loaded | null = null;
 const FILE = path.join(process.cwd(), "data", "snapshot.json");
 /** When set (production), the snapshot is fetched from here (e.g. the raw file on the repo's `data` branch). */
 const URL = process.env.SNAPSHOT_URL;
+/** Needed only while the repository is private: raw.githubusercontent answers 404 without it. */
+const TOKEN = process.env.SNAPSHOT_TOKEN;
 const REVALIDATE_SECONDS = 600;
 
 function index(snapshot: Snapshot, key: string): Loaded {
@@ -27,7 +29,10 @@ function index(snapshot: Snapshot, key: string): Loaded {
 export async function getData(): Promise<Loaded> {
   if (URL) {
     try {
-      const res = await fetch(URL, { next: { revalidate: REVALIDATE_SECONDS } });
+      const res = await fetch(URL, {
+        next: { revalidate: REVALIDATE_SECONDS },
+        headers: TOKEN ? { authorization: `Bearer ${TOKEN}` } : undefined,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const snapshot = (await res.json()) as Snapshot;
       if (cache && cache.key === snapshot.generatedAt) return cache;

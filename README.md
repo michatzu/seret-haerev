@@ -50,6 +50,7 @@ src/components/          רכיבי UI
 
 העתיקו את `.env.example` ל-`.env.local`:
 
+- `SNAPSHOT_URL` — הלוח המעודכן בענף `data`. אם הריפו פרטי, צריך גם `SNAPSHOT_TOKEN` עם טוקן קריאה, אחרת הכתובת מחזירה 404.
 - `TMDB_API_KEY` — פוסטרים, תקצירים בעברית, מדינה, שנה, במאי ושחקנים ([themoviedb.org](https://www.themoviedb.org/settings/api), חינם).
 - ציון IMDb מגיע ישירות ממאגר הנתונים היומי של IMDb (title.ratings), בלי מפתח; צריך רק את מזהה ה-IMDb שמגיע מ-TMDB.
 
