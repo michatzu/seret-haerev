@@ -2,15 +2,16 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Close, Search } from "./Icons";
+import { Close } from "./Icons";
 import { queryToSearch, type Query } from "@/lib/query";
 
 const DEBOUNCE_MS = 250;
 
 /**
- * Free text over titles, directors and cast. The text lives in the URL like every other filter, so
- * a search can be shared and survives going into a film and back; typing is debounced so a search
- * costs one request rather than one per letter.
+ * One box over everything the viewer might name: a film, a director, an actor, a genre, a hall
+ * type, a cinema. The text lives in the URL like every other filter, so a search survives opening
+ * a film and coming back and can be shared; typing is debounced so a search costs one request
+ * rather than one per letter.
  */
 export function SearchBox({ q }: { q: Query }) {
   const router = useRouter();
@@ -37,16 +38,22 @@ export function SearchBox({ q }: { q: Query }) {
 
   return (
     <div className="relative flex items-center">
-      <Search width={17} height={17} className="pointer-events-none absolute start-3 text-muted" />
+      {/* the placeholder is drawn here rather than by the input, so the clapperboard can sit beside
+          it and the pair can be centred together */}
+      {!text && (
+        <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-[15px] text-muted">
+          <span className="text-[17px] leading-none">🎬</span>
+          <span>אקשן</span>
+        </span>
+      )}
       <input
         type="search"
         inputMode="search"
         enterKeyHint="search"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="חיפוש סרטים, שחקנים ובמאים"
-        aria-label="חיפוש סרטים, שחקנים ובמאים"
-        className="h-11 w-full rounded-xl border border-line bg-card ps-10 pe-10 text-[15px] text-ink outline-none placeholder:text-muted focus:border-accent [&::-webkit-search-cancel-button]:hidden"
+        aria-label="חיפוש סרטים, שחקנים, במאים, ז׳אנרים, אולמות ובתי קולנוע"
+        className="h-11 w-full rounded-xl border border-line bg-card px-10 text-center text-[15px] text-ink outline-none focus:border-accent [&::-webkit-search-cancel-button]:hidden"
       />
       {text && (
         <button type="button" onClick={() => setText("")} aria-label="ניקוי החיפוש"

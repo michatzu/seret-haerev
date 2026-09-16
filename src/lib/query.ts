@@ -1,5 +1,5 @@
 /** Filter / sort model shared by the list and the film page. Everything lives in the URL. */
-import type { Film, Screening, Venue } from "./types";
+import type { Attr, Film, Screening, Venue } from "./types";
 import { distanceKm, type LatLng } from "./geo";
 import { TZ, ymdInIsrael, ymdPlusDays } from "./tz";
 import { genreLabel } from "./genres";
@@ -135,6 +135,40 @@ export interface SearchHit { field: "title" | "director" | "cast"; value: string
  * Does the film answer to this text, and why? The reason is shown on the card, because a result
  * that matched an actor the viewer typed should say so rather than look like a mistake.
  */
+/** What a hall or a venue is called when somebody types it: "IMAX", "סינמטק", "תחת כיפת השמיים". */
+const ATTR_WORDS: Partial<Record<Attr, string>> = {
+  imax: "IMAX", vip: "VIP", "4dx": "4DX", screenx: "ScreenX", "3d": "3D",
+  outdoor: "חוץ תחת כיפת השמיים אוויר פתוח", "35mm": "35 מ״מ",
+  dubbed: "מדובב דיבוב", subbed: "כתוביות מתורגם",
+};
+const KIND_WORDS: Record<Venue["kind"], string> = {
+  multiplex: "רשת מולטיפלקס",
+  cinematheque: "סינמטק",
+  outdoor: "חוץ תחת כיפת השמיים אוויר פתוח",
+  boutique: "אולם קטן בוטיק",
+};
+
+/**
+ * The same box answers "אקשן", "IMAX", "סינמטק תל אביב" and "נולאן". A genre, a hall or a cinema is
+ * a property of where and how the film screens, so those are matched against the screening in hand
+ * rather than against the film alone.
+ */
+export function screeningMatchesSearch(s: Screening, film: Film, venue: Venue, query: string): boolean {
+  if (!query) return true;
+  if (searchMatch(film, query)) return true;
+  const terms = foldText(query).split(" ").filter(Boolean);
+  const haystack = foldText([
+    film.genres.join(" "),
+    film.genreKeys.map(genreLabel).join(" "),
+    venue.name,
+    venue.city,
+    KIND_WORDS[venue.kind],
+    s.attrs.map((a) => ATTR_WORDS[a] ?? "").join(" "),
+    s.hall ?? "",
+  ].join(" "));
+  return terms.every((t) => haystack.includes(t));
+}
+
 export function searchMatch(film: Film, query: string): SearchHit | null {
   const q = foldText(query);
   if (!q) return null;
@@ -226,7 +260,7 @@ export function passes(s: Screening, film: Film, venue: Venue, q: Query, dates: 
   if (q.venues.length && !q.venues.includes(venue.id)) return false;
   if (!matchesHalls(s, venue, q.halls)) return false;
   if (!matchesGenres(film, q.genres)) return false;
-  if (q.q && !searchMatch(film, q.q)) return false;
+  if (q.q && !screeningMatchesSearch(s, film, venue, q.q)) return false;
   return true;
 }
 
