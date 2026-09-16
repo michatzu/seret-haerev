@@ -61,3 +61,7 @@ export const BookmarkFilled = (p: SVGProps<SVGSVGElement>) => (
 export const ListIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M9 6.5h11M9 12h11M9 17.5h11" /><circle cx="4.6" cy="6.5" r="1.1" /><circle cx="4.6" cy="12" r="1.1" /><circle cx="4.6" cy="17.5" r="1.1" /></svg>
 );
+
+export const Search = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
+);

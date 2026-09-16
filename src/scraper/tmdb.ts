@@ -29,6 +29,8 @@ export interface Enrichment {
   trailerUrl?: string;
   director?: string;
   cast?: string[];
+  /** alternate spellings of the names above, for search only */
+  searchNames?: string[];
   language?: string;
   popularity?: number;
 }
@@ -83,6 +85,7 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
     film.trailerUrl ??= d.trailerUrl;
     film.director ??= d.director;
     if (!film.cast?.length && d.cast?.length) film.cast = d.cast;
+    if (d.searchNames?.length) film.searchNames = d.searchNames;
     film.language ??= d.language;
     film.tmdbId = d.tmdbId;
     film.imdbId = d.imdbId;
@@ -197,8 +200,10 @@ interface Details {
 
 async function fetchDetails(key: string, id: number): Promise<Enrichment> {
   const he = await getJson<Details>(`${TMDB}/movie/${id}?api_key=${key}&language=he-IL&append_to_response=credits,videos,external_ids`);
-  const needEn = !he.overview || !(he.videos?.results?.length);
-  const en = needEn ? await getJson<Details>(`${TMDB}/movie/${id}?api_key=${key}&language=en-US&append_to_response=videos`).catch(() => undefined) : undefined;
+  // The English credits are always fetched: TMDB translates some names and not others, so a viewer
+  // typing "נולאן" and a viewer typing "Nolan" are both looking for the same film. The Latin
+  // spellings are kept for search only; the page shows the Hebrew ones.
+  const en = await getJson<Details>(`${TMDB}/movie/${id}?api_key=${key}&language=en-US&append_to_response=videos,credits`).catch(() => undefined);
   const video = [...(he.videos?.results ?? []), ...(en?.videos?.results ?? [])].filter((v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"));
   video.sort((a, b) => Number(b.type === "Trailer") - Number(a.type === "Trailer") || Number(b.official ?? false) - Number(a.official ?? false));
   // origin_country is where the film is from; production_countries lists every co-producer, and its
@@ -219,6 +224,11 @@ async function fetchDetails(key: string, id: number): Promise<Enrichment> {
     trailerUrl: video[0] ? `https://www.youtube.com/watch?v=${video[0].key}` : undefined,
     director,
     cast: he.credits?.cast?.slice(0, 6).map((c) => c.name),
+    searchNames: [
+      ...(en?.credits?.crew?.filter((c) => c.job === "Director").map((c) => c.name) ?? []),
+      ...(en?.credits?.cast?.slice(0, 6).map((c) => c.name) ?? []),
+      en?.title ?? "",
+    ].filter((n, i, all) => n && all.indexOf(n) === i),
     // original_language is the production's language, not the film's: The Fifth Element is a
     // French production spoken in English. The first spoken language is what the audience hears.
     language: he.spoken_languages?.[0]?.iso_639_1 || he.original_language,

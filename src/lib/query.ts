@@ -21,6 +21,8 @@ export interface Query {
   venues: string[];
   /** canonical genre keys, [] = all */
   genres: string[];
+  /** free text over titles, directors and cast */
+  q: string;
   sort: SortKey;
   kids: boolean; // kids group expanded
   small: boolean; // films with no artwork, grouped so they do not pock the list
@@ -59,9 +61,10 @@ export function parseQuery(sp: SP): Query {
   const halls = [...new Set(list(sp.hall).filter((h): h is HallKey => HALLS.includes(h as HallKey)))];
   const venues = [...new Set(list(sp.v))];
   const genres = [...new Set(list(sp.g))];
+  const q = (one(sp.q) ?? "").trim().slice(0, 60);
   let sort = pick(one(sp.sort), SORTS, "dist");
   if (isMultiDay(day) && sort === "time") sort = "dist";
-  return { day, from, radius, halls, venues, genres, sort, kids: one(sp.kids) === "1", small: one(sp.small) === "1", far: one(sp.far) === "1" };
+  return { day, from, radius, halls, venues, genres, q, sort, kids: one(sp.kids) === "1", small: one(sp.small) === "1", far: one(sp.far) === "1" };
 }
 
 /** Serialise a query back to search params, omitting defaults. */
@@ -73,6 +76,7 @@ export function queryToSearch(q: Query): string {
   if (q.halls.length) p.set("hall", q.halls.join(","));
   if (q.venues.length) p.set("v", q.venues.join(","));
   if (q.genres.length) p.set("g", q.genres.join(","));
+  if (q.q) p.set("q", q.q);
   if (q.sort !== "dist") p.set("sort", q.sort);
   if (q.kids) p.set("kids", "1");
   if (q.small) p.set("small", "1");
@@ -111,6 +115,47 @@ export function genresLabel(keys: string[]): string {
   return `${keys.length} ז׳אנרים`;
 }
 export const SORT_LABELS: Record<SortKey, string> = { dist: "לפי קרבה", time: "לפי שעה", imdb: "לפי IMDb" };
+
+
+/* ---- free-text search ---- */
+
+/** Hebrew is typed with and without the geresh, and cast names arrive in both scripts. */
+function foldText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[\u0591-\u05c7]/g, "")
+    .replace(/["'\u05f3\u05f4\u2018\u2019\u201c\u201d.,:;!?()\[\]{}\-\u2013\u2014_/\\|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export interface SearchHit { field: "title" | "director" | "cast"; value: string }
+
+/**
+ * Does the film answer to this text, and why? The reason is shown on the card, because a result
+ * that matched an actor the viewer typed should say so rather than look like a mistake.
+ */
+export function searchMatch(film: Film, query: string): SearchHit | null {
+  const q = foldText(query);
+  if (!q) return null;
+  const terms = q.split(" ").filter(Boolean);
+  const hits = (value: string | undefined) => {
+    if (!value) return false;
+    const v = foldText(value);
+    return terms.every((t) => v.includes(t));
+  };
+  if (hits(film.title) || hits(film.originalTitle)) return { field: "title", value: film.title };
+  if (hits(film.director)) return { field: "director", value: film.director! };
+  const actor = film.cast?.find((c) => hits(c));
+  if (actor) return { field: "cast", value: actor };
+  // the same people under their other spelling: the card still shows the Hebrew name
+  const alt = film.searchNames?.findIndex((n) => hits(n)) ?? -1;
+  if (alt >= 0) {
+    const isDirector = alt === 0 && !!film.director;
+    return { field: isDirector ? "director" : "cast", value: (isDirector ? film.director : film.cast?.[alt - 1]) ?? film.searchNames![alt] };
+  }
+  return null;
+}
 
 /* ---- time windows ---- */
 const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
@@ -181,6 +226,7 @@ export function passes(s: Screening, film: Film, venue: Venue, q: Query, dates: 
   if (q.venues.length && !q.venues.includes(venue.id)) return false;
   if (!matchesHalls(s, venue, q.halls)) return false;
   if (!matchesGenres(film, q.genres)) return false;
+  if (q.q && !searchMatch(film, q.q)) return false;
   return true;
 }
 

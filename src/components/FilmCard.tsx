@@ -6,7 +6,7 @@ import { TimePill, screeningTag } from "./TimePill";
 import { ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
 import { formatDaySet, formatDateSet, inVenues, languageName, screeningsCount, venuesCount, withinTheWeek } from "@/lib/format";
-import { isMultiDay, pickTimes, weekday, type FilmRow, type Query } from "@/lib/query";
+import { isMultiDay, pickTimes, searchMatch, weekday, type FilmRow, type Query } from "@/lib/query";
 import type { Screening } from "@/lib/types";
 
 const MAX_VENUES = 2;
@@ -33,6 +33,9 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
         ? `עוד ${screeningsCount(restScreenings)}${restVenues > 0 ? ` ${inVenues(restVenues)}` : ""}`
         : undefined;
   const href = `/film/${row.film.id}${search}`;
+  // a film that answered to an actor's name should say so, or the result looks like a mistake
+  const hit = q.q ? searchMatch(row.film, q.q) : null;
+  const match = hit && hit.field !== "title" ? `${hit.field === "director" ? "בימוי" : "משחק"}: ${hit.value}` : undefined;
 
   return (
     <SwipeToFile filmId={row.film.id} title={row.film.title}>
@@ -45,6 +48,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
         <div className="flex flex-col gap-[3px]">
           <Link href={href} className="font-serif text-[19px] font-bold leading-[1.2] text-ink">{row.film.title}</Link>
           <div className="text-[12px] text-muted">{subLine(row.film)}</div>
+          {match && <div className="text-[12px] text-accent">{match}</div>}
         </div>
         <div className="flex flex-col gap-1.5">
           {shown.map((v) => (

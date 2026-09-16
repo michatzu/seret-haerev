@@ -68,6 +68,8 @@ export interface Film {
   backdropUrl?: string;
   director?: string;
   cast?: string[];
+  /** alternate spellings of the title, director and cast, used for search but never shown */
+  searchNames?: string[];
   /** Original spoken language (ISO 639-1) when known */
   language?: string;
   isKids: boolean;
@@ -124,6 +126,8 @@ export interface RawFilm {
   trailerUrl?: string;
   director?: string;
   cast?: string[];
+  /** alternate spellings of the title, director and cast, used for search but never shown */
+  searchNames?: string[];
   language?: string;
   isKids?: boolean;
   isIsraeli?: boolean;
