@@ -7,8 +7,8 @@ import { scrapeLev } from "@/scraper/lev";
 import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { scrapePopup } from "@/scraper/popup";
 import { scrapeSmarticket } from "@/scraper/smarticket";
-import { scrapeSeret } from "@/scraper/seret";
-import { buildSnapshot, mergeByTmdbId } from "@/scraper/normalize";
+import { scrapeBeitGabriel } from "@/scraper/betgabriel";
+import { buildSnapshot, classifyAudience, mergeByTmdbId } from "@/scraper/normalize";
 import { carryForward } from "@/scraper/carry";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
@@ -23,7 +23,7 @@ const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }
   { chain: "cinematheque", run: scrapeCinematheques },
   { chain: "other", label: "popup", run: scrapePopup },
   { chain: "other", label: "smarticket", run: scrapeSmarticket },
-  { chain: "other", label: "seret", run: scrapeSeret },
+  { chain: "other", label: "beit gabriel", run: scrapeBeitGabriel },
 ];
 
 async function main() {
@@ -54,6 +54,7 @@ async function main() {
   const t1 = Date.now();
   const enriched = await enrichFilms(snapshot.films);
   const mergedByTmdb = mergeByTmdbId(snapshot);
+  classifyAudience(snapshot);
   console.log(enriched.skipped ? "enrich: skipped (no TMDB_API_KEY)" : `enrich: tmdb=${enriched.matched}/${snapshot.films.length} imdb=${enriched.rated} merged=${mergedByTmdb} ${Date.now() - t1}ms`);
   const t2 = Date.now();
   const posters = await fillPosters(snapshot.films);

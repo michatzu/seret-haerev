@@ -1,7 +1,7 @@
 /**
  * A source that fails must not empty its cinemas off the site.
  *
- * Movieland, seret.co.il and Secret Tel Aviv sit behind Cloudflare's bot challenge, which passes a
+ * Movieland and Secret Tel Aviv sit behind Cloudflare's bot challenge, which passes a
  * home connection and stops any data centre, so the hourly refresh on GitHub cannot reach them at
  * all. That is a protection their operators chose and this project does not try to defeat it; what
  * it does instead is refuse to publish a snapshot that quietly drops those cinemas, by carrying
