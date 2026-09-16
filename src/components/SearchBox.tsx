@@ -40,12 +40,12 @@ export function SearchBox({ q }: { q: Query }) {
 
   return (
     <div className="relative flex items-center">
-      {/* the placeholder is drawn here rather than by the input, so the clapperboard can sit beside
-          it and the pair can be centred together */}
+      {/* the placeholder is drawn here rather than by the input, so the emoji can sit beside it and
+          the pair can be centred together. "סרצ׳" is "search" said aloud, and reads as "סרט". */}
       {!text && (
         <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-[15px] text-muted">
-          <span>מחפשים סרט?</span>
-          <span className="text-[17px] leading-none">🎬</span>
+          <span>סרצ׳</span>
+          <span className="text-[17px] leading-none">🧐</span>
         </span>
       )}
       <input
