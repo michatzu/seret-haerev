@@ -7,12 +7,19 @@ import path from "node:path";
 import type { Film } from "@/lib/types";
 import { getJson, pool } from "./http";
 import { loadImdbRatings } from "./imdb";
+import { canonicalGenres, genreLabel } from "@/lib/genres";
 
 const TMDB = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
 const CACHE_FILE = path.join(process.cwd(), "data", "enrich-cache.json");
 
-interface CacheEntry { at: string; tmdbId?: number | null; data?: Enrichment; imdbRating?: number | null; imdbVotes?: number; imdbAt?: string }
+interface CacheEntry { v?: number; at: string; tmdbId?: number | null; data?: Enrichment; imdbRating?: number | null; imdbVotes?: number; imdbAt?: string }
+/**
+ * Bumped whenever the rules below change what counts as a match. The cache outlives a deploy — it
+ * is restored from the data branch on every run — so without this a fixed rule would keep handing
+ * back the answer it was written to correct.
+ */
+const MATCH_VERSION = 5;
 type Cache = Record<string, CacheEntry>;
 
 export interface Enrichment {
@@ -41,6 +48,11 @@ const COUNTRY_HE: Record<string, string> = {
   NZ: "ניו זילנד", IN: "הודו", CN: "סין", HK: "הונג קונג", TW: "טייוואן", AR: "ארגנטינה", BR: "ברזיל", MX: "מקסיקו", CL: "צ׳ילה",
   PL: "פולין", RU: "רוסיה", TR: "טורקיה", AT: "אוסטריה", CH: "שווייץ", CZ: "צ׳כיה", HU: "הונגריה", GR: "יוון", PT: "פורטוגל",
   UA: "אוקראינה", IR: "איראן", RO: "רומניה", IS: "איסלנד", ZA: "דרום אפריקה", TH: "תאילנד", ID: "אינדונזיה", PS: "פלסטין", EG: "מצרים", MA: "מרוקו", LB: "לבנון",
+  PH: "הפיליפינים", CY: "קפריסין", BG: "בולגריה", RS: "סרביה", HR: "קרואטיה", SK: "סלובקיה", SI: "סלובניה", EE: "אסטוניה", LV: "לטביה", LT: "ליטא",
+  GE: "גאורגיה", AM: "ארמניה", AZ: "אזרבייג׳ן", KZ: "קזחסטן", LU: "לוקסמבורג", MT: "מלטה", AL: "אלבניה", MK: "מקדוניה", BA: "בוסניה", ET: "אתיופיה",
+  NG: "ניגריה", KE: "קניה", SN: "סנגל", TN: "תוניסיה", DZ: "אלג׳יריה", JO: "ירדן", IQ: "עיראק", SY: "סוריה", SA: "סעודיה", AE: "איחוד האמירויות", QA: "קטאר",
+  VN: "וייטנאם", SG: "סינגפור", MY: "מלזיה", PK: "פקיסטן", BD: "בנגלדש", NP: "נפאל", LK: "סרי לנקה", CO: "קולומביה", PE: "פרו", UY: "אורוגוואי",
+  VE: "ונצואלה", CU: "קובה", CR: "קוסטה ריקה", BO: "בוליביה", PY: "פרגוואי", EC: "אקוודור", GT: "גואטמלה", PA: "פנמה", DO: "הרפובליקה הדומיניקנית",
 };
 
 async function loadCache(): Promise<Cache> {
@@ -65,10 +77,16 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
     if (film.isEvent) return;
     const ck = film.id;
     let entry = cache[ck];
-    if (!entry || !fresh(entry.at, 14) || (entry.tmdbId === null && !fresh(entry.at, 2))) {
-      const tmdbId = await findTmdbId(key, film);
-      entry = { at: new Date().toISOString(), tmdbId: tmdbId ?? null };
-      if (tmdbId) entry.data = await fetchDetails(key, tmdbId).catch(() => undefined);
+    if (!entry || entry.v !== MATCH_VERSION || !fresh(entry.at, 14) || (entry.tmdbId === null && !fresh(entry.at, 2))) {
+      // Read each candidate's details before accepting it, and never twice for the same film.
+      const seen = new Map<number, Enrichment | undefined>();
+      const detailsOf = async (id: number) => {
+        if (!seen.has(id)) seen.set(id, await fetchDetails(key, id).catch(() => undefined));
+        return seen.get(id);
+      };
+      const tmdbId = await findTmdbId(key, film, async (id) => runtimeAgrees(film.runtime, (await detailsOf(id))?.runtime));
+      entry = { v: MATCH_VERSION, at: new Date().toISOString(), tmdbId: tmdbId ?? null, imdbRating: entry?.imdbRating, imdbVotes: entry?.imdbVotes, imdbAt: entry?.imdbAt };
+      if (tmdbId) entry.data = await detailsOf(tmdbId);
       cache[ck] = entry;
     }
     const d = entry.data;
@@ -78,7 +96,16 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
     film.year ??= d.year;
     film.country ??= d.country;
     film.runtime ??= d.runtime;
-    if (!film.genres.length && d.genres?.length) film.genres = d.genres;
+    // TMDB's Hebrew is its own ("מותחן", "משפחה"), and a genre that never becomes a key is a
+    // genre the filter cannot see: a quarter of the catalogue was showing a word on the card that
+    // matched nothing in the menu above it.
+    if (!film.genreKeys.length && d.genres?.length) {
+      const keys = canonicalGenres(d.genres, film.isIsraeli);
+      if (keys.length) {
+        film.genreKeys = keys;
+        film.genres = keys.filter((k) => k !== "israeli").map(genreLabel);
+      }
+    }
     film.synopsis = d.synopsis || film.synopsis;
     film.posterUrl ??= d.posterUrl;
     film.backdropUrl ??= d.backdropUrl;
@@ -131,12 +158,20 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
 
 interface SearchHit { id: number; title: string; original_title: string; release_date?: string; popularity: number; vote_count: number; genre_ids?: number[] }
 
-async function findTmdbId(key: string, film: Film): Promise<number | undefined> {
+async function findTmdbId(key: string, film: Film, accept: (id: number) => Promise<boolean>): Promise<number | undefined> {
   const queries: { q: string; lang: string }[] = [];
   if (film.originalTitle) queries.push({ q: film.originalTitle, lang: "en-US" });
   queries.push({ q: film.title, lang: "he-IL" });
-  // also try the title without a subtitle after ":"
-  if (film.title.includes(":")) queries.push({ q: film.title.split(":")[0], lang: "he-IL" });
+  // One cinema's "\u05e4\u05d5\u05dc\u05d7\u05df" is another's "\u05e4\u05d5\u05dc\u05d7\u05df \u05d4\u05d3\u05de\u05d9\u05dd". The longer name is the one TMDB knows, and
+  // a title we only hold in its short form is exactly the one that matches the wrong film.
+  for (const s of film.sources) {
+    const t = s.title.replace(/\s+/g, " ").trim();
+    if (t && !queries.some((q) => q.q === t)) queries.push({ q: t, lang: "he-IL" });
+  }
+  // A title stripped of its subtitle is the weakest thing we ask with, so it has to keep at least
+  // two words: Fassbinder's "\u05e2\u05dc\u05d9: \u05e4\u05d7\u05d3 \u05d0\u05d5\u05db\u05dc \u05d0\u05ea \u05d4\u05e0\u05e9\u05de\u05d4" cut down to "\u05e2\u05dc\u05d9" is the exact Hebrew name of Michael Mann's Ali.
+  const stem = film.title.split(":")[0].trim();
+  if (film.title.includes(":") && stem.split(/\s+/).length >= 2) queries.push({ q: stem, lang: "he-IL" });
   for (const { q, lang } of queries) {
     const url = `${TMDB}/search/movie?api_key=${key}&language=${lang}&region=IL&include_adult=false&query=${encodeURIComponent(q)}${film.year ? `&primary_release_year=${film.year}` : ""}`;
     let res = await getJson<{ results: SearchHit[] }>(url);
@@ -149,12 +184,34 @@ async function findTmdbId(key: string, film: Film): Promise<number | undefined> 
     // TMDB matches loosely on alternative titles, which once turned "\u05d4\u05de\u05e9\u05d7\u05e7" into Avengers:
     // Endgame ("\u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"). Require the winner to actually resemble what we asked for.
     const agrees = hits.find((h) => titlesAgree(q, h.title) || titlesAgree(q, h.original_title));
-    if (agrees) return agrees.id;
+    if (agrees && await accept(agrees.id)) return agrees.id;
+    // A hit that shares a word with the query without agreeing is the dangerous kind: a different
+    // film whose name begins the same way. No shared word at all means TMDB answered through an
+    // alternative title it holds on record, which is worth trusting.
+    if (hits.length === 1 && sharesAWord(q, hits[0])) continue;
     // TMDB also matches alternative titles, which is how "\u05e1\u05e7\u05d5\u05d8 \u05e4\u05d9\u05dc\u05d2\u05e8\u05d9\u05dd \u05e0\u05d2\u05d3 \u05d4\u05e2\u05d5\u05dc\u05dd" finds a film
     // released here as "\u05d4\u05d0\u05e7\u05e1\u05d9\u05dd \u05e9\u05dc \u05d4\u05d7\u05d1\u05e8\u05d4 \u05e9\u05dc\u05d9". One hit for a title of several words is that, not a coincidence.
-    if (hits.length === 1 && q.trim().split(/\s+/).length >= 2) return hits[0].id;
+    if (hits.length === 1 && q.trim().split(/\s+/).length >= 2 && await knownAs(key, hits[0].id, q) && await accept(hits[0].id)) return hits[0].id;
   }
   return undefined;
+}
+
+/** Whether TMDB itself files this film under something like the name we asked for. */
+async function knownAs(key: string, id: number, q: string): Promise<boolean> {
+  const res = await getJson<{ titles?: { title: string }[] }>(`${TMDB}/movie/${id}/alternative_titles?api_key=${key}`).catch(() => undefined);
+  return !!res?.titles?.some((t) => titlesAgree(q, t.title));
+}
+
+/**
+ * The cinema publishes a running time; TMDB publishes its own. Rounding, credits and a regional
+ * cut explain a few minutes between them — half of the catalogue agrees to the minute — but a
+ * film a good half-hour apart is a different film, however close the name. This is what separates
+ * the Argentine "\u05d4\u05de\u05e9\u05d7\u05e7" from Fincher's, and Kenji Tanigaki's "\u05d4\u05d6\u05e2\u05dd" from a horror film of 2019.
+ */
+const RUNTIME_SLACK_MIN = 25;
+function runtimeAgrees(cinema: number | undefined, tmdb: number | undefined): boolean {
+  if (!cinema || !tmdb) return true; // no claim to contradict
+  return Math.abs(cinema - tmdb) <= RUNTIME_SLACK_MIN;
 }
 /** Loose title comparison: same words, ignoring order, punctuation and a leading Hebrew "\u05d4". */
 function titleTokens(t: string): Set<string> {
@@ -175,9 +232,19 @@ function titlesAgree(a: string, b: string): boolean {
   let shared = 0;
   for (const w of small) if (big.has(w)) shared++;
   if (shared / small.size < 0.7) return false;
-  // a single common word inside a much longer title is a coincidence, not a match:
-  // "\u05d4\u05de\u05e9\u05d7\u05e7" is not "\u05d4\u05e0\u05d5\u05e7\u05de\u05d9\u05dd: \u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"
-  return small.size >= 2 || big.size <= 2;
+  // A one-word title has to meet a one-word title. Let it match a longer name on that single word
+  // and "\u05d3\u05e8\u05d9\u05d9\u05d1" becomes Mulholland Drive, "\u05e4\u05ea\u05d0\u05d5\u05dd" becomes \u05e4\u05ea\u05d0\u05d5\u05dd 30 and "\u05d4\u05d7\u05ea\u05d5\u05e0\u05d4" becomes
+  // \u05d4\u05d7\u05ea\u05d5\u05e0\u05d4 \u05d4\u05d2\u05d3\u05d5\u05dc\u05d4 \u2014 each of them a real, different film now playing somewhere else.
+  return small.size >= 2 || big.size === 1;
+}
+
+/** Whether a hit answers the query with one of its own words, rather than through another title. */
+function sharesAWord(q: string, h: SearchHit): boolean {
+  const Q = titleTokens(q);
+  for (const t of [h.title, h.original_title]) {
+    for (const w of titleTokens(t)) if (Q.has(w)) return true;
+  }
+  return false;
 }
 
 function score(h: SearchHit, year: number | undefined, now: number): number {
@@ -229,9 +296,10 @@ async function fetchDetails(key: string, id: number): Promise<Enrichment> {
       ...(en?.credits?.cast?.slice(0, 6).map((c) => c.name) ?? []),
       en?.title ?? "",
     ].filter((n, i, all) => n && all.indexOf(n) === i),
-    // original_language is the production's language, not the film's: The Fifth Element is a
-    // French production spoken in English. The first spoken language is what the audience hears.
-    language: he.spoken_languages?.[0]?.iso_639_1 || he.original_language,
+    // spoken_languages lists every tongue heard anywhere in the film, in no particular order: it
+    // opens with Danish for a French film about a Danish architect, and with Russian for The
+    // Brutalist. original_language is the one the film was made in, which is the one to name.
+    language: he.original_language || he.spoken_languages?.[0]?.iso_639_1,
     popularity: he.popularity,
   };
 }

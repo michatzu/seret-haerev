@@ -9,7 +9,9 @@ import type { Film } from "@/lib/types";
 import { getText, pool } from "./http";
 
 const CACHE_FILE = path.join(process.cwd(), "data", "poster-cache.json");
-interface Hit { url: string | null; synopsis?: string | null; at: string }
+interface Hit { v?: number; url: string | null; synopsis?: string | null; at: string }
+/** Bumped when parsing changes, so pages read under the old rules are read again. */
+const PARSE_VERSION = 2;
 type Cache = Record<string, Hit>;
 const FRESH_MS = 14 * 86_400_000;
 
@@ -82,7 +84,7 @@ function parse(chain: string, html: string): { url: string | null; synopsis: str
     const uploads = [...html.matchAll(/https:\/\/www\.lev\.co\.il\/wp-content\/uploads\/[^"'\s)]+\.(?:jpe?g|png|webp)/gi)]
       .map((m) => m[0])
       .filter((u) => !CHROME.test(u) && !backgrounds.has(u));
-    const url = unescapeSlashes(ld) ?? unescapeSlashes(og) ?? uploads.find((u) => /poster/i.test(u)) ?? uploads[0] ?? null;
+    const url = fromJsonString(ld) ?? fromJsonString(og) ?? uploads.find((u) => /poster/i.test(u)) ?? uploads[0] ?? null;
     // Lev truncates its own JSON-LD too; the whole text sits in .movie_content, under a "תקציר" heading
     const body = /class="[^"]*movie_content[^"]*"[^>]*>([\s\S]{0,4000}?)<\/div>/i.exec(html)?.[1];
     return { url, synopsis: cleanSynopsis(body?.replace(/^\s*תקציר\s*/, "")) ?? cleanSynopsis(jsonLdDescription(html)) ?? cleanSynopsis(ogContent(html, "description")) };
@@ -102,10 +104,19 @@ function parse(chain: string, html: string): { url: string | null; synopsis: str
   return { url: null, synopsis: null };
 }
 
-/** JSON-LD escapes every slash: "https:\/\/www.lev.co.il\/..." */
-function unescapeSlashes(u: string | undefined): string | null {
+/**
+ * A URL lifted out of JSON-LD is still a JSON string: every slash is escaped, and a Hebrew file
+ * name arrives one backslash-u escape per letter. Left as they are, those escapes travel into the
+ * address the poster proxy asks for and the cinema answers 404 — so read the value as JSON means it.
+ */
+function fromJsonString(u: string | undefined): string | null {
   if (!u) return null;
-  const clean = decode(u.replace(/\\\//g, "/"));
+  let clean: string;
+  try {
+    clean = decode(JSON.parse(`"${u}"`));
+  } catch {
+    clean = decode(u.replace(/\\\//g, "/"));
+  }
   return /^https?:\/\//.test(clean) && !CHROME.test(clean) ? clean : null;
 }
 
@@ -120,10 +131,10 @@ export async function fillPosters(films: Film[]): Promise<{ posters: number; syn
       if (!url) continue;
       const ck = `${src.chain}:${src.id}`;
       let hit = cache[ck];
-      if (!hit || Date.now() - new Date(hit.at).getTime() > FRESH_MS) {
+      if (!hit || hit.v !== PARSE_VERSION || Date.now() - new Date(hit.at).getTime() > FRESH_MS) {
         let parsed = { url: null as string | null, synopsis: null as string | null };
         try { parsed = parse(src.chain, await getText(url)); } catch { /* keep nulls */ }
-        hit = cache[ck] = { ...parsed, at: new Date().toISOString() };
+        hit = cache[ck] = { v: PARSE_VERSION, ...parsed, at: new Date().toISOString() };
       }
       if (hit.url) {
         // keep every page poster as a fallback candidate, even once one is chosen

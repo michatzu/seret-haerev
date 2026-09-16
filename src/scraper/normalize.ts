@@ -254,3 +254,47 @@ export function mergeByTmdbId(snapshot: Snapshot): number {
   snapshot.films = snapshot.films.filter((f) => !dropped.has(f.id));
   return merged;
 }
+
+/** Ratings from this many people mean an audience wider than the nursery. */
+const WIDE_AUDIENCE_VOTES = 50_000;
+
+/**
+ * Who a film is for, settled after the enrichment has landed.
+ *
+ * What marks a film as one for young children is that you can only see it dubbed: a child who
+ * cannot read subtitles yet has no other way in. Screenings nobody tagged say nothing either way,
+ * so the test weighs dubbed showings against subtitled ones rather than against the whole
+ * schedule — five untagged times out of a hundred used to be enough to keep a film out of the
+ * group, which is how "דג ושמו באסה" and "טד החוקר" ended up in the main list.
+ *
+ * The exception is the animation the whole world watches: Toy Story and Coyote vs. Acme play to
+ * grown-ups too, and burying them here hides them from the people looking for them.
+ *
+ * Being Israeli is settled here for the same reason: for most of the catalogue only TMDB knows
+ * what language a film was made in, and it says so long after the grouping has run.
+ */
+export function classifyAudience(snapshot: Snapshot): void {
+  const total = new Map<string, number>(), dubbedHe = new Map<string, number>(), subbed = new Map<string, number>();
+  const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
+  for (const s of snapshot.screenings) {
+    bump(total, s.filmId);
+    if (s.dubbedLang === "he") bump(dubbedHe, s.filmId);
+    if (s.attrs.includes("subbed")) bump(subbed, s.filmId);
+  }
+
+  for (const film of snapshot.films) {
+    const he = dubbedHe.get(film.id) ?? 0, sub = subbed.get(film.id) ?? 0;
+    const dubbedShare = he / (total.get(film.id) || 1);
+
+    // A film made in Hebrew is an Israeli film — unless the Hebrew is the dubbing.
+    if (film.country === "ישראל" || (film.language === "he" && dubbedShare < 0.5)) film.isIsraeli = true;
+    if (film.isIsraeli && !film.genreKeys.includes("israeli")) film.genreKeys = canonicalGenres(film.genres, true);
+
+    // A subtitled showing is the way in for anyone who can already read, so it is what keeps a
+    // film out of the group. Where nothing is tagged either way, the cinemas' own wording answers.
+    const tagged = he + sub;
+    const dubbedOnly = tagged > 0 ? sub / tagged < 0.05 : film.sources.every((s) => /מדובב|מדובבת|דיבוב/.test(s.title));
+    // A name that says "מדובב" is the listing's own word for itself, and outranks all of it.
+    film.isKids = /מדובב|מדובבת/.test(film.title) || (dubbedOnly && (film.imdbVotes ?? 0) < WIDE_AUDIENCE_VOTES);
+  }
+}

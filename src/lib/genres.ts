@@ -35,7 +35,9 @@ const SYNONYMS: Record<string, string[]> = {
   "פנטזיה": ["fantasy"], "היסטוריה": ["history"], "אימה": ["horror"], "ישראלי": ["israeli"],
   "מוזיקה": ["music"], "מחזמר": ["music"], "מוסיקה": ["music"],
   "מסתורין": ["mystery"], "רומנטי": ["romance"], "רומנטיקה": ["romance"],
-  "מדע בדיוני": ["scifi"], "מתח": ["thriller"], "מלחמה": ["war"], "מערבון": ["western"],
+  // TMDB's own Hebrew is not the chains': it says "מותחן" for thriller and misspells history
+  "מדע בדיוני": ["scifi"], "מתח": ["thriller"], "מותחן": ["thriller"], "הסטוריה": ["history"],
+  "מלחמה": ["war"], "מערבון": ["western"],
   "קלאסיקה": ["classic"], "קלאסיק": ["classic"], "קלאסי": ["classic"],
 };
 
