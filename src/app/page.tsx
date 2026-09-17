@@ -18,14 +18,17 @@ export default async function Home(props: PageProps<"/">) {
   const [place, data] = await Promise.all([getPlace(), getData()]);
   const now = new Date();
   const list = buildList(data.films, data.venues, data.snapshot.screenings, q, place, now);
-  const search = queryToSearch({ ...q, kids: false, small: false, far: false });
+  // When nothing the filter asked for was inside the radius, the list dropped it — so the filter
+  // above has to say "בכל הארץ" rather than a distance the results plainly ignore.
+  const shown = list.widened ? { ...q, radius: "all" as const } : q;
+  const search = queryToSearch({ ...shown, kids: false, small: false, far: false });
 
   return (
     <>
-      <Header q={q} place={place} venues={venueOptions(data.venues.values(), place)} genres={genreOptions(data.films.values())} />
+      <Header q={shown} place={place} venues={venueOptions(data.venues.values(), place)} genres={genreOptions(data.films.values())} />
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-3 px-4 pb-10 pt-3.5">
-        <SearchBox q={q} />
-        <SortSegment q={q} />
+        <SearchBox q={shown} />
+        <SortSegment q={shown} />
 
         {list.main.length === 0 && (
           <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] text-muted">אין הקרנות שמתאימות לסינון הזה. אפשר להרחיב את המרחק או את השעה.</div>
@@ -33,16 +36,16 @@ export default async function Home(props: PageProps<"/">) {
 
         <div className="flex flex-col gap-2.5">
           {list.main.map((row) => (
-            <FilmCard key={row.film.id} row={row} q={q} search={search} />
+            <FilmCard key={row.film.id} row={row} q={shown} search={search} />
           ))}
           <LazyGroup label="לילדים ומדובבים" count={list.kids.length} param="kids" open={q.kids}>
-            {q.kids && list.kids.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
+            {q.kids && list.kids.map((row) => <FilmCard key={row.film.id} row={row} q={shown} search={search} />)}
           </LazyGroup>
           <LazyGroup label="סרטים שלא מצאנו את הכרזה שלהם" count={list.small.length} param="small" open={q.small}>
-            {q.small && list.small.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
+            {q.small && list.small.map((row) => <FilmCard key={row.film.id} row={row} q={shown} search={search} />)}
           </LazyGroup>
           <LazyGroup label="מוקרן רחוק יותר" count={list.farther.length} param="far" open={q.far}>
-            {q.far && list.farther.map((row) => <FilmCard key={row.film.id} row={row} q={q} search={search} />)}
+            {q.far && list.farther.map((row) => <FilmCard key={row.film.id} row={row} q={shown} search={search} />)}
           </LazyGroup>
         </div>
 

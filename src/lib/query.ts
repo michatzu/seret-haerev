@@ -267,15 +267,18 @@ export function passes(s: Screening, film: Film, venue: Venue, q: Query, dates: 
 /* ---- list assembly ---- */
 export interface VenueTimes { venue: Venue; distanceKm: number; screenings: Screening[] }
 export interface FilmRow { film: Film; venues: VenueTimes[]; nearestKm: number; nextAt: string; total: number; days: number[] }
-export interface ListResult { main: FilmRow[]; kids: FilmRow[]; small: FilmRow[]; farther: FilmRow[]; dates: string[] }
+export interface ListResult {
+  main: FilmRow[]; kids: FilmRow[]; small: FilmRow[]; farther: FilmRow[]; dates: string[];
+  /** The radius was dropped because nothing the filter asked for was inside it. */
+  widened: boolean;
+}
 
 export function buildList(films: Map<string, Film>, venues: Map<string, Venue>, screenings: Screening[], q: Query, here: LatLng, now = new Date()): ListResult {
   const dates = new Set(datesFor(q.day, now));
-  const maxKm = RADIUS_KM[q.radius];
   const dist = new Map<string, number>();
   for (const v of venues.values()) dist.set(v.id, distanceKm(here, v));
 
-  type Acc = { film: Film; near: Map<string, Screening[]>; far: Map<string, Screening[]> };
+  type Acc = { film: Film; at: Map<string, Screening[]> };
   const acc = new Map<string, Acc>();
   for (const s of screenings) {
     const venue = venues.get(s.venueId);
@@ -283,11 +286,10 @@ export function buildList(films: Map<string, Film>, venues: Map<string, Venue>, 
     if (!venue || !film || film.isEvent) continue;
     if (!passes(s, film, venue, q, dates, now)) continue;
     let a = acc.get(film.id);
-    if (!a) acc.set(film.id, (a = { film, near: new Map(), far: new Map() }));
-    const bucket = (dist.get(venue.id) ?? Infinity) <= maxKm ? a.near : a.far;
-    const arr = bucket.get(venue.id);
+    if (!a) acc.set(film.id, (a = { film, at: new Map() }));
+    const arr = a.at.get(venue.id);
     if (arr) arr.push(s);
-    else bucket.set(venue.id, [s]);
+    else a.at.set(venue.id, [s]);
   }
 
   const toRow = (film: Film, m: Map<string, Screening[]>): FilmRow => {
@@ -297,24 +299,40 @@ export function buildList(films: Map<string, Film>, venues: Map<string, Venue>, 
     return { film, venues: vts, nearestKm: vts[0]?.distanceKm ?? Infinity, nextAt: all.map((s) => s.startsAt).sort()[0], total: all.length, days: [...new Set(all.map((s) => weekday(s.startsAt)))].sort() };
   };
 
-  const main: FilmRow[] = [], kids: FilmRow[] = [], small: FilmRow[] = [], farther: FilmRow[] = [];
-  for (const a of acc.values()) {
-    if (a.near.size) {
-      const row = toRow(a.film, a.near);
-      // no poster anywhere means a film too small for any catalogue: real, but it would leave a
-      // hole in a list that is mostly artwork, so these gather in their own group
-      if (a.film.isKids) kids.push(row);
-      else if (!a.film.posterUrl && !a.film.posterUrls?.length) small.push(row);
-      else main.push(row);
-    } else if (a.far.size) farther.push(toRow(a.film, a.far));
-  }
+  const split = (maxKm: number) => {
+    const main: FilmRow[] = [], kids: FilmRow[] = [], small: FilmRow[] = [], farther: FilmRow[] = [];
+    for (const a of acc.values()) {
+      const near = new Map<string, Screening[]>(), far = new Map<string, Screening[]>();
+      for (const [vid, ss] of a.at) ((dist.get(vid) ?? Infinity) <= maxKm ? near : far).set(vid, ss);
+      if (near.size) {
+        const row = toRow(a.film, near);
+        // no poster anywhere means a film too small for any catalogue: real, but it would leave a
+        // hole in a list that is mostly artwork, so these gather in their own group
+        if (a.film.isKids) kids.push(row);
+        else if (!a.film.posterUrl && !a.film.posterUrls?.length) small.push(row);
+        else main.push(row);
+      } else if (far.size) farther.push(toRow(a.film, far));
+    }
+    return { main, kids, small, farther };
+  };
+
+  let out = split(RADIUS_KM[q.radius]);
+  /**
+   * Naming a cinema on the other side of the country should not be answered with an empty list
+   * and the real answer folded away under "\u05de\u05d5\u05e7\u05e8\u05df \u05e8\u05d7\u05d5\u05e7 \u05d9\u05d5\u05ea\u05e8". When the distance is the only thing left standing
+   * between the viewer and what they asked for, it gives way, and the filter says so.
+   */
+  const widened = !out.main.length && !out.kids.length && !out.small.length && out.farther.length > 0;
+  if (widened) out = split(Infinity);
+
   const cmp = sorter(q.sort);
-  main.sort(cmp);
-  kids.sort(cmp);
-  small.sort(cmp);
-  farther.sort(sorter("dist"));
-  return { main, kids, small, farther, dates: [...dates] };
+  out.main.sort(cmp);
+  out.kids.sort(cmp);
+  out.small.sort(cmp);
+  out.farther.sort(sorter("dist"));
+  return { ...out, dates: [...dates], widened };
 }
+
 
 function sorter(sort: SortKey) {
   return (a: FilmRow, b: FilmRow): number => {
