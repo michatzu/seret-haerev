@@ -8,6 +8,7 @@ const CHAIN_RANK: Chain[] = ["planet", "ravhen", "movieland", "cinemacity", "hot
 const rank = (c: Chain) => CHAIN_RANK.indexOf(c);
 
 const CYRILLIC = /[Ѐ-ӿ][Ѐ-ӿ\s:!?,.\-–—'"«»]*/g;
+const ARABIC = /[؀-ۿ][؀-ۿ\s:!?,.\-–—'"«»]*/g;
 
 /** Title -> grouping key. Learns Cyrillic->Hebrew pairs from mixed titles ("האודיסאה מדובב לרוסית ОДИССЕЯ"). */
 function keyer(raws: RawFilm[]) {
@@ -185,8 +186,15 @@ export function buildSnapshot(results: AdapterResult[], reports: SourceReport[])
 
 /** Display title: strip dubbing / format suffixes but keep the real name. */
 function cleanTitle(t: string): string {
-  return t
-    .replace(/מדובב\s+ל(רוסית|עברית|אנגלית)/g, " ")
+  // A print dubbed into Arabic carries its Arabic name beside the Hebrew one, the way the Russian
+  // prints carry Cyrillic. Drop it only when a Hebrew title is left to keep.
+  const withoutArabic = t.replace(ARABIC, " ");
+  const stripped = /[\u05d0-\u05ea]/.test(withoutArabic) ? withoutArabic : t;
+  return stripped
+    // "סרט \"אומהה\"" is the cinema announcing a film, not the film's name.
+    .replace(/^\s*סרט\s+(?=["״“'׳‘])/u, "")
+    .replace(/מדובב\s+ל(רוסית|עברית|אנגלית|ערבית)/g, " ")
+    .replace(/\s+מדובב(ת)?\s*$/u, " ")
     .replace(/\(\s*מדובב(ת)?\s*\)/g, " ")
     .replace(/\s*-\s*מדובב(ת)?\s*$/u, " ")
     .replace(/\s*-\s*אנגלית\s*$/u, " ")
@@ -210,6 +218,39 @@ function cleanTitle(t: string): string {
  * דיבוב עברי"), which shows the film five times in the list. Films that matched the same TMDB
  * entry are the same film, so they collapse into one and their screenings follow.
  */
+/** Fold one card's findings into the one it turned out to be, and point its screenings there. */
+function absorb(keep: Film, f: Film) {
+  keep.sources = [...keep.sources, ...f.sources];
+  keep.posterUrls = [...new Set([...(keep.posterUrls ?? []), ...(f.posterUrls ?? []), f.posterUrl].filter((u): u is string => !!u))];
+  keep.posterUrl ??= f.posterUrl;
+  keep.synopsis ??= f.synopsis;
+  keep.runtime ??= f.runtime;
+  keep.director ??= f.director;
+  keep.trailerUrl ??= f.trailerUrl;
+  keep.ageRating ??= f.ageRating;
+  keep.tmdbId ??= f.tmdbId;
+  keep.imdbId ??= f.imdbId;
+  keep.imdbRating ??= f.imdbRating;
+  keep.imdbVotes ??= f.imdbVotes;
+  keep.year ??= f.year;
+  keep.country ??= f.country;
+  keep.language ??= f.language;
+  if (!keep.cast?.length && f.cast?.length) keep.cast = f.cast;
+  if (!keep.genreKeys.length && f.genreKeys.length) { keep.genreKeys = f.genreKeys; keep.genres = f.genres; }
+  keep.isKids ||= f.isKids;
+  keep.isIsraeli ||= f.isIsraeli;
+  keep.isEvent &&= f.isEvent;
+}
+
+/** Drop the absorbed cards and send their screenings to the card that kept them. */
+function applyMerges(snapshot: Snapshot, remap: Map<string, string>, dropped: Set<string>) {
+  for (const s of snapshot.screenings) {
+    const to = remap.get(s.filmId);
+    if (to) s.filmId = to;
+  }
+  snapshot.films = snapshot.films.filter((f) => !dropped.has(f.id));
+}
+
 export function mergeByTmdbId(snapshot: Snapshot): number {
   const groups = new Map<number, Film[]>();
   for (const f of snapshot.films) {
@@ -231,29 +272,60 @@ export function mergeByTmdbId(snapshot: Snapshot): number {
       remap.set(f.id, keep.id);
       dropped.add(f.id);
       merged++;
-      keep.sources = [...keep.sources, ...f.sources];
-      keep.posterUrls = [...new Set([...(keep.posterUrls ?? []), ...(f.posterUrls ?? []), f.posterUrl].filter((u): u is string => !!u))];
-      keep.posterUrl ??= f.posterUrl;
-      keep.synopsis ??= f.synopsis;
-      keep.runtime ??= f.runtime;
-      keep.director ??= f.director;
-      keep.trailerUrl ??= f.trailerUrl;
-      keep.ageRating ??= f.ageRating;
-      if (!keep.cast?.length && f.cast?.length) keep.cast = f.cast;
-      if (!keep.genreKeys.length && f.genreKeys.length) { keep.genreKeys = f.genreKeys; keep.genres = f.genres; }
-      keep.isKids ||= f.isKids;
-      keep.isIsraeli ||= f.isIsraeli;
-      keep.isEvent &&= f.isEvent;
+      absorb(keep, f);
     }
   }
-  if (!merged) return 0;
-  for (const s of snapshot.screenings) {
-    const to = remap.get(s.filmId);
-    if (to) s.filmId = to;
-  }
-  snapshot.films = snapshot.films.filter((f) => !dropped.has(f.id));
+  if (merged) applyMerges(snapshot, remap, dropped);
   return merged;
 }
+
+/** A label a cinema hangs on a screening, on either side of a dash: the film itself is the rest. */
+const LABEL_SPLIT = /\s+[-\u2013\u2014|]\s+/;
+
+/**
+ * Third merge pass, for the same film sold under an occasion.
+ *
+ * A cinema announces a preview, a parents' morning, a sensory screening or a director's Q&A by
+ * putting the occasion in the title: "\u05d8\u05e8\u05d5\u05dd \u05d1\u05db\u05d5\u05e8\u05d4 - \u05db\u05d1\u05e9\u05d4 \u05d1\u05e7\u05d5\u05e4\u05e1\u05d4", "\u05d8\u05e4\u05d9\u05d8\u05d9 - \u05d4\u05e7\u05e8\u05e0\u05d4 \u05e8\u05d2\u05d9\u05e9\u05d4", "\u05e9\u05e4\u05ea\u05d9\u05d9\u05dd + \u05d0\u05d9\u05e8\u05d5\u05d7 \u05d4\u05d1\u05de\u05d0\u05d9". Each of
+ * those is a second card for a film the list already has. When one side of the dash is, word for
+ * word, a film already on the list, the two are the same film and the plain name keeps the card.
+ *
+ * It only ever matches a whole side of a separator, never a word inside one, because "\u05d3\u05e8\u05d9\u05d9\u05d1" and
+ * "\u05de\u05dc\u05d4\u05d5\u05dc\u05e0\u05d3 \u05d3\u05e8\u05d9\u05d9\u05d1" really are two different films.
+ */
+export function mergeLabelledScreenings(snapshot: Snapshot): number {
+  const byTitle = new Map<string, Film>();
+  for (const f of snapshot.films) {
+    const k = normalizeTitle(f.title);
+    // an ambiguous name is no basis for merging anything into it
+    if (k.length >= 3) byTitle.set(k, byTitle.has(k) ? byTitle.get(k)! : f);
+  }
+
+  const remap = new Map<string, string>();
+  const dropped = new Set<string>();
+  let merged = 0;
+  for (const f of snapshot.films) {
+    if (dropped.has(f.id)) continue;
+    const parts = f.title.split(LABEL_SPLIT).map((p) => p.trim()).filter(Boolean);
+    // A dash can have the film on either side; a "+" only ever adds to it, so there the film leads.
+    const plus = f.title.split(/\s+\+\s+/).map((p) => p.trim()).filter(Boolean);
+    const sides = parts.length > 1 ? parts : plus.length > 1 ? plus.slice(0, 1) : [];
+    for (const side of sides) {
+      const keep = byTitle.get(normalizeTitle(side));
+      if (!keep || keep === f || dropped.has(keep.id) || keep.isEvent !== f.isEvent) continue;
+      remap.set(f.id, keep.id);
+      dropped.add(f.id);
+      merged++;
+      absorb(keep, f);
+      break;
+    }
+  }
+  if (merged) applyMerges(snapshot, remap, dropped);
+  return merged;
+}
+
+/** Subtitled showings past this many are an audience the cinema means to serve. */
+const REAL_SUBTITLED_RUN = 5;
 
 /** Ratings from this many people mean an audience wider than the nursery. */
 const WIDE_AUDIENCE_VOTES = 50_000;
@@ -291,10 +363,28 @@ export function classifyAudience(snapshot: Snapshot): void {
     if (film.isIsraeli && !film.genreKeys.includes("israeli")) film.genreKeys = canonicalGenres(film.genres, true);
 
     // A subtitled showing is the way in for anyone who can already read, so it is what keeps a
-    // film out of the group. Where nothing is tagged either way, the cinemas' own wording answers.
+    // film out of the group. One or two of them among hundreds is a tag somebody forgot; a dozen
+    // is a decision the cinema made, and "לוני טונס" has twelve. Where nothing is tagged either
+    // way, the cinemas' own wording is all there is to go on.
     const tagged = he + sub;
-    const dubbedOnly = tagged > 0 ? sub / tagged < 0.05 : film.sources.every((s) => /מדובב|מדובבת|דיבוב/.test(s.title));
+    const dubbedOnly =
+      sub < REAL_SUBTITLED_RUN &&
+      (tagged > 0 ? sub / tagged < 0.05 : film.sources.every((s) => /מדובב|מדובבת|דיבוב/.test(s.title)));
+    /**
+     * An Israeli children's film is never dubbed — it was made in Hebrew — so nothing about its
+     * showings says who it is for. What says it is the company its genres keep: nothing but
+     * animation, family, adventure and comedy, and no subtitled showing to suggest an audience
+     * that reads. One word of drama or history, and this is somebody's family film, not a
+     * children's one.
+     */
+    const CHILDRENS_GENRES = new Set(["family", "animation", "adventure", "comedy", "israeli"]);
+    const keys = new Set(film.genreKeys);
+    const onlyChildrensGenres =
+      sub === 0 && keys.size > 0 && (keys.has("family") || keys.has("animation")) &&
+      [...keys].every((k) => CHILDRENS_GENRES.has(k));
     // A name that says "מדובב" is the listing's own word for itself, and outranks all of it.
-    film.isKids = /מדובב|מדובבת/.test(film.title) || (dubbedOnly && (film.imdbVotes ?? 0) < WIDE_AUDIENCE_VOTES);
+    film.isKids =
+      /מדובב|מדובבת/.test(film.title) ||
+      ((dubbedOnly || onlyChildrensGenres) && (film.imdbVotes ?? 0) < WIDE_AUDIENCE_VOTES);
   }
 }

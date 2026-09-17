@@ -8,7 +8,7 @@ import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { scrapePopup } from "@/scraper/popup";
 import { scrapeSmarticket } from "@/scraper/smarticket";
 import { scrapeBeitGabriel } from "@/scraper/betgabriel";
-import { buildSnapshot, classifyAudience, mergeByTmdbId } from "@/scraper/normalize";
+import { buildSnapshot, classifyAudience, mergeByTmdbId, mergeLabelledScreenings } from "@/scraper/normalize";
 import { carryForward } from "@/scraper/carry";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
@@ -53,7 +53,7 @@ async function main() {
   if (carried.screenings) console.log(`carried: ${carried.screenings} screenings at ${carried.venues} venues whose source failed, from ${carried.from}`);
   const t1 = Date.now();
   const enriched = await enrichFilms(snapshot.films);
-  const mergedByTmdb = mergeByTmdbId(snapshot);
+  const mergedByTmdb = mergeByTmdbId(snapshot) + mergeLabelledScreenings(snapshot);
   classifyAudience(snapshot);
   console.log(enriched.skipped ? "enrich: skipped (no TMDB_API_KEY)" : `enrich: tmdb=${enriched.matched}/${snapshot.films.length} imdb=${enriched.rated} merged=${mergedByTmdb} ${Date.now() - t1}ms`);
   const t2 = Date.now();
