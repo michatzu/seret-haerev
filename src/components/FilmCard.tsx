@@ -3,7 +3,7 @@ import { Poster, hasPoster } from "./Poster";
 import { FilmActions } from "./FilmActions";
 import { SwipeToFile } from "./SwipeToFile";
 import { TimePill, screeningTag } from "./TimePill";
-import { ChevronBack } from "./Icons";
+import { Caret, ChevronBack } from "./Icons";
 import { formatDistance } from "@/lib/geo";
 import { formatDaySet, formatDateSet, inVenues, languageName, screeningsCount, venuesCount, withinTheWeek } from "@/lib/format";
 import { isMultiDay, pickTimes, searchMatch, weekday, type FilmRow, type Query } from "@/lib/query";
@@ -69,6 +69,17 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
         )}
       </div>
       </div>
+      {row.film.shortSynopsis && (
+        /* Native <details>, so a card stays a server component and this works before any script does. */
+        <details className="group -mt-0.5">
+          <summary className="flex min-h-[26px] items-center gap-1.5 text-[13px] font-medium text-muted">
+            <Caret width={14} height={14} className="chev transition-transform" />
+            <span className="group-open:hidden">על מה הסרט</span>
+            <span className="hidden group-open:inline">סגירה</span>
+          </summary>
+          <p className="pt-1.5 text-[13.5px] leading-[1.55] text-ink/85">{row.film.shortSynopsis}</p>
+        </details>
+      )}
       <FilmActions filmId={row.film.id} title={row.film.title} />
     </article>
     </SwipeToFile>

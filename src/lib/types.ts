@@ -56,6 +56,8 @@ export interface Film {
   genreKeys: string[];
   ageRating?: string;
   synopsis?: string;
+  /** One sentence for the card, so the list can be read without opening anything. */
+  shortSynopsis?: string;
   posterUrl?: string;
   /** Every poster candidate across chains, best first; served through /api/poster/[id] */
   posterUrls?: string[];

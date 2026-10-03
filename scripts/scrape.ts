@@ -13,6 +13,7 @@ import { carryForward } from "@/scraper/carry";
 import { rememberRetired } from "@/scraper/retired";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
+import { addSummaries } from "@/scraper/summaries";
 
 const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }[] = [
   { chain: "planet", run: () => scrapeCineworld(PLANET) },
@@ -61,6 +62,9 @@ async function main() {
   const retired = rememberRetired(snapshot, previous);
   const posters = await fillPosters(snapshot.films);
   console.log(`pages: posters=${posters.posters} synopses=${posters.synopses}, ${snapshot.films.filter((f) => !f.posterUrl && !f.isEvent).length} still missing ${Date.now() - t2}ms`);
+  const t3 = Date.now();
+  const sum = await addSummaries(snapshot.films);
+  console.log(sum.skipped ? "summaries: skipped (no ANTHROPIC_API_KEY)" : `summaries: asked=${sum.asked} repaired=${sum.repaired} dropped=${sum.dropped} ${Date.now() - t3}ms`);
   const out = path.join(process.cwd(), "data", "snapshot.json");
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snapshot));
