@@ -16,19 +16,19 @@ export function rememberRetired(snapshot: Snapshot, previous: Snapshot | null, n
   cutoff.setMonth(cutoff.getMonth() - KEEP_MONTHS);
   const today = now.toISOString().slice(0, 10);
 
-  const kept = new Map<string, { title: string; year?: number; seen: string }>();
+  const kept = new Map<string, { title: string; year?: number; seen: string; poster?: string }>();
   for (const [id, v] of Object.entries(previous?.retired ?? {})) {
     if (!v?.title) continue;
     const seen = typeof v.seen === "string" ? v.seen : today;
-    if (new Date(seen) >= cutoff) kept.set(id, { title: v.title, year: v.year, seen });
+    if (new Date(seen) >= cutoff) kept.set(id, { title: v.title, year: v.year, seen, poster: v.poster });
   }
   // the last run's own films, which is where a film that left this week is caught
   const lastSeen = (previous?.generatedAt ?? today).slice(0, 10);
   for (const f of previous?.films ?? []) {
-    if (!f.isEvent && f.title) kept.set(f.id, { title: f.title, year: f.year, seen: lastSeen });
+    if (!f.isEvent && f.title) kept.set(f.id, { title: f.title, year: f.year, seen: lastSeen, poster: f.posterUrl });
   }
   for (const f of snapshot.films) {
-    if (!f.isEvent) kept.set(f.id, { title: f.title, year: f.year, seen: today });
+    if (!f.isEvent) kept.set(f.id, { title: f.title, year: f.year, seen: today, poster: f.posterUrl });
   }
 
   // the snapshot carries only the names it no longer lists itself

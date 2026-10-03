@@ -69,9 +69,11 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/poster/[id]">) 
   const { id } = await ctx.params;
   const data = await getData();
   const film = data.films.get(id);
-  if (!film) return placeholder();
+  // A film can leave every cinema and stay in somebody's list; its poster is kept with its name.
+  const kept = film ? undefined : data.snapshot.retired?.[id]?.poster;
+  if (!film && !kept) return placeholder();
 
-  const candidates = [...new Set([film.posterUrl, ...(film.posterUrls ?? [])].filter((u): u is string => !!u))];
+  const candidates = [...new Set((film ? [film.posterUrl, ...(film.posterUrls ?? [])] : [kept]).filter((u): u is string => !!u))];
   const cached = memo.get(id);
   if (cached && cached.key === candidates.join("|")) return image(cached.body, cached.type);
 
@@ -80,6 +82,14 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/poster/[id]">) 
     if (!hit) continue;
     remember(id, candidates.join("|"), hit.body, hit.type);
     return image(hit.body, hit.type);
+  }
+  /**
+   * Nothing answered us — but "us" is a data centre, and Movieland's cinemas sit behind a wall
+   * that lets a person through and stops a server. The viewer's own browser is a person's
+   * browser, so hand it the address and let it try; it usually succeeds where this did not.
+   */
+  if (candidates[0]) {
+    return Response.redirect(candidates[0], 307);
   }
   return placeholder();
 }

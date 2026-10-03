@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check } from "./Icons";
+import { Check, Clapper } from "./Icons";
 
 export function BottomSheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: string; children: ReactNode; footer?: ReactNode }) {
   useEffect(() => {
@@ -60,7 +60,7 @@ export function DoneButton({ onClick }: { onClick: () => void }) {
     <button type="button" onClick={onClick}
       className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-accent text-[15px] font-semibold text-accent-ink">
       <span>אקשן</span>
-      <span className="text-[17px] leading-none" aria-hidden>🎬</span>
+      <Clapper width={18} height={18} />
     </button>
   );
 }

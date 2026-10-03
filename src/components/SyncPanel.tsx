@@ -82,15 +82,17 @@ export function SyncPanel() {
     <section className="mt-4 flex flex-col gap-2 rounded-xl border border-line bg-card px-4 py-3.5 text-[13px] leading-[1.6] text-muted">
       {code ? (
         <>
-          <div>הרשימות שלך נשמרות גם אצלנו, תחת הקוד הזה:</div>
-          <div dir="ltr" className="select-all rounded-lg bg-ph px-3 py-2 text-center font-mono text-[15px] font-medium tracking-wide text-ink">{code}</div>
-          <div>כדי לראות אותן במכשיר אחר, או לשחזר אותן אם משהו נמחק — מקלידים שם את הקוד. שמור אותו במקום שתמצא.</div>
+          <div className="font-medium text-ink">הרשימות שלך שמורות. זה הקוד:</div>
+          <div dir="rtl" className="select-all rounded-lg bg-ph px-3 py-2.5 text-center text-[16px] font-semibold tracking-wide text-ink">{code}</div>
+          <div>מכאן זה קורה לבד — כל סרט שתסמן נשמר גם אצלנו, בלי ללחוץ על כלום.</div>
+          <div>שמור את הקוד איפשהו. בטלפון אחר, או אחרי שנמחקו לך נתוני האתר, פותחים את ״הרשימות שלי״, לוחצים ״יש לי קוד״ ומקלידים אותו — והרשימות חוזרות.</div>
           {state === "working" && <div>שומר…</div>}
           {state === "error" && <div className="text-ink">לא הצלחנו לשמור כרגע. הרשימה בטוחה כאן בדפדפן, וננסה שוב בשינוי הבא.</div>}
         </>
       ) : entering ? (
         <>
           <label htmlFor="sync-code" className="font-medium text-ink">הקלדת קוד קיים</label>
+          <div>הרשימות שהקוד מחזיק יתווספו למה שכבר יש כאן. שום דבר לא נמחק.</div>
           <input
             id="sync-code" dir="ltr" value={typed} onChange={(e) => setTyped(e.target.value)}
             placeholder="ירח-גשם-תפוז-418" autoComplete="off" autoCorrect="off" spellCheck={false}
@@ -107,12 +109,14 @@ export function SyncPanel() {
       ) : (
         <>
           <div className="font-medium text-ink">לא לאבד את הרשימות</div>
-          <div>הרשימות נשמרות בדפדפן הזה בלבד. אפשר לקבל קוד שישמור אותן גם אצלנו — בלי שם, בלי סיסמה ובלי מייל — כדי לשחזר אותן או לראות אותן בטלפון אחר.</div>
-          <div className="flex gap-2 pt-0.5">
-            <button type="button" onClick={create} disabled={state === "working"} className="h-10 flex-1 rounded-lg border border-accent font-medium text-accent">
+          <div>הרשימות נשמרות רק בדפדפן הזה. ניקוי נתוני האתר מוחק אותן, והן גם לא קיימות בטלפון אחר שלך. קוד פותר את שניהם — בלי שם, בלי סיסמה ובלי מייל.</div>
+          <div className="flex flex-col gap-2 pt-1">
+            <button type="button" onClick={create} disabled={state === "working"} className="h-10 rounded-lg border border-accent font-medium text-accent">
               {state === "working" ? "יוצר…" : "יצירת קוד"}
             </button>
-            <button type="button" onClick={() => setEntering(true)} className="h-10 flex-1 rounded-lg border border-line font-medium">יש לי קוד</button>
+            <div className="-mt-1">לחיצה אחת. מקבלים קוד של שלוש מילים ושלוש ספרות, ומכאן הכול נשמר לבד.</div>
+            <button type="button" onClick={() => setEntering(true)} className="mt-1 h-10 rounded-lg border border-line font-medium">יש לי קוד</button>
+            <div className="-mt-1">זה הצד השני: אם כבר יצרת קוד במכשיר אחר, כאן מקלידים אותו והרשימות מופיעות.</div>
           </div>
         </>
       )}

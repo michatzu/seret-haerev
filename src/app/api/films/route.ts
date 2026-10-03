@@ -21,6 +21,6 @@ export async function GET(req: Request) {
   // holds it, but its name is kept so the list is not left with a blank row.
   const gone = ids
     .filter((id) => !data.films.has(id) && retired[id])
-    .map((id) => ({ id, title: retired[id].title, year: retired[id].year, hasPoster: false, screenings: 0 }));
+    .map((id) => ({ id, title: retired[id].title, year: retired[id].year, hasPoster: !!retired[id].poster, screenings: 0 }));
   return Response.json({ films: [...films, ...gone] }, { headers: { "cache-control": "no-store" } });
 }

@@ -65,3 +65,26 @@ export const ListIcon = (p: SVGProps<SVGSVGElement>) => (
 export const Search = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
 );
+
+/**
+ * SF Symbols cannot be shipped to a browser — Apple licenses the set for apps on its own
+ * platforms, not as a web font — so these two are drawn to match the symbols they stand in for.
+ */
+
+/** movieclapper: the board, with its hinged striped arm. */
+export const Clapper = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="2.6" y="10" width="18.8" height="10.4" rx="2" />
+    <path d="M3.2 10 4.9 5.4l17.5 1.9-.6 2.7" />
+    <path d="M9.1 6.1 7.9 10M14.4 6.7 13.2 10.4" />
+  </svg>
+);
+
+/** film.stack: one strip in front of another, both perforated. */
+export const FilmStack = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M7.5 4.5h11a2 2 0 0 1 2 2v7" />
+    <rect x="2.8" y="7.5" width="15.4" height="12" rx="2" />
+    <path d="M6.6 7.5v12M14.4 7.5v12" />
+  </svg>
+);

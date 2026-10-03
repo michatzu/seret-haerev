@@ -11,12 +11,14 @@ import { getText, pool } from "./http";
 const CACHE_FILE = path.join(process.cwd(), "data", "poster-cache.json");
 interface Hit { v?: number; url: string | null; synopsis?: string | null; at: string }
 /** Bumped when parsing changes, so pages read under the old rules are read again. */
-const PARSE_VERSION = 3;
+const PARSE_VERSION = 4;
 type Cache = Record<string, Hit>;
 const FRESH_MS = 14 * 86_400_000;
 
 function pageUrl(chain: string, id: string, title: string): string | undefined {
   if (chain === "lev") return `https://www.lev.co.il/movies/${encodeURIComponent(id.replace(/\s+/g, "-"))}/`;
+  // Hot's feed carries no synopsis, but every film's own page is rendered with one
+  if (chain === "hot" && /^\d+$/.test(id)) return `https://hotcinema.co.il/movie/${id}`;
   // Jerusalem's calendar carries no images; each film's node page does
   if (chain === "cinematheque" && id.startsWith("jlm-node-")) return `https://jer-cin.org.il/he/node/${id.slice("jlm-node-".length)}`;
   // the Haifa festival's schedule carries no images either; its film pages do
@@ -90,6 +92,10 @@ function parse(chain: string, html: string): { url: string | null; synopsis: str
     // Lev truncates its own JSON-LD too; the whole text sits in .movie_content, under a "תקציר" heading
     const body = /class="[^"]*movie_content[^"]*"[^>]*>([\s\S]{0,4000}?)<\/div>/i.exec(html)?.[1];
     return { url, synopsis: cleanSynopsis(body?.replace(/^\s*תקציר\s*/, "")) ?? cleanSynopsis(jsonLdDescription(html)) ?? cleanSynopsis(ogContent(html, "description")) };
+  }
+  if (chain === "hot") {
+    const body = /class="[^"]*\bdesc1\b[^"]*"[^>]*>([\s\S]{0,4000}?)<\/div>/i.exec(html)?.[1];
+    return { url: null, synopsis: cleanSynopsis(body) };
   }
   if (chain === "cinematheque" || chain === "other") {
     const og = ogContent(html, "image")

@@ -21,6 +21,8 @@ export function ListsView() {
   const [tab, setTab] = useState<FilmStatus>("want");
   const [cache, setCache] = useState<{ key: string; rows: Row[] } | null>(null);
 
+  // A film filed before the site kept names, and long gone from every schedule, is a row that
+  // says nothing: no name, no poster, no year. Better not to draw it than to draw "סרט".
   const entries = entriesWith(store, tab);
   const ids = entries.map((e) => e.id);
   const key = `${tab}:${ids.join(",")}`;
@@ -72,7 +74,9 @@ export function ListsView() {
           <>
             {entries.map((e) => {
               const f = live.get(e.id);
-              const title = f?.title || e.title || "סרט";
+              const title = f?.title || e.title;
+              // nothing to show and nothing to call it: the schedule forgot it and so did we
+              if (!title) return null;
               const year = f?.year ?? e.year;
               const showing = (f?.screenings ?? 0) > 0;
               const poster = <Poster filmId={e.id} hasPoster={!!f?.hasPoster} alt="" width={44} height={66} />;
@@ -86,7 +90,7 @@ export function ListsView() {
                     <div className="text-[12px] text-muted">
                       {[languageName(f?.language), year, f?.imdbRating ? `IMDb ${f.imdbRating.toFixed(1)}` : undefined].filter(Boolean).join(" · ")}
                     </div>
-                    <div className="text-[12px] text-muted">{showing ? "מוקרן עכשיו" : "לא בהקרנות כרגע"}</div>
+                    <div className="text-[12px] text-muted">{showing ? "מוקרן עכשיו" : "ירד מהאקרנים"}</div>
                   </div>
                   <button type="button" onClick={() => setStatus(e.id, tab, title)} aria-label={`הוצאה מהרשימה: ${title}`} title="הוצאה מהרשימה"
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted">

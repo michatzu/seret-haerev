@@ -117,7 +117,7 @@ export interface Snapshot {
    * nothing to call a film it stopped carrying in March. Names only, and they fall out after a
    * year and a half.
    */
-  retired?: Record<string, { title: string; year?: number; seen?: string }>;
+  retired?: Record<string, { title: string; year?: number; seen?: string; poster?: string }>;
 }
 
 /* ---- raw shapes produced by adapters, before films are unified across chains ---- */

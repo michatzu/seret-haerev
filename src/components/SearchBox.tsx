@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Close } from "./Icons";
+import { Close, FilmStack } from "./Icons";
 import { queryToSearch, type Query } from "@/lib/query";
 import { track } from "@/lib/track";
 
@@ -40,13 +40,12 @@ export function SearchBox({ q }: { q: Query }) {
 
   return (
     <div className="relative flex items-center">
-      {/* the placeholder is drawn here rather than by the input, so the emoji can sit beside it and
-          the pair can be centred together. "סרצ׳" is "search" said aloud, and reads as "סרט". */}
+      {/* The symbol sits at the head of the field rather than beside a centred word: a box with
+          something written in the middle of it reads as a button, and this is a place to type.
+          "סרצ׳" is "search" said aloud, and it reads as "סרט". */}
+      <FilmStack width={17} height={17} aria-hidden className="pointer-events-none absolute start-3.5 text-muted" />
       {!text && (
-        <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 text-[15px] text-muted">
-          <span>סרצ׳</span>
-          <span className="text-[17px] leading-none">🧐</span>
-        </span>
+        <span aria-hidden className="pointer-events-none absolute start-9 text-[15px] text-muted">סרצ׳</span>
       )}
       <input
         type="search"
@@ -55,7 +54,7 @@ export function SearchBox({ q }: { q: Query }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         aria-label="חיפוש סרטים, שחקנים, במאים, ז׳אנרים, אולמות ובתי קולנוע"
-        className="h-11 w-full rounded-xl border border-line bg-card px-10 text-center text-[15px] text-ink outline-none focus:border-accent [&::-webkit-search-cancel-button]:hidden"
+        className="h-11 w-full rounded-xl border border-line bg-card ps-9 pe-10 text-start text-[15px] text-ink outline-none focus:border-accent [&::-webkit-search-cancel-button]:hidden"
       />
       {text && (
         <button type="button" onClick={() => setText("")} aria-label="ניקוי החיפוש"

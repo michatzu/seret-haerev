@@ -89,11 +89,13 @@ const NEEDS_REPAIR = /^\s*(תקציר|סינופסיס|על הסרט)\b|לאחר
  * who the film is about, which is the thing somebody scrolling wants to know. Good enough to be
  * worth having on its own, and the model's sentence simply replaces it where there is a key.
  */
-export function firstSentence(text: string, limit = 150): string | undefined {
+export function firstSentence(text: string, limit = 190): string | undefined {
   const t = text.replace(/\s+/g, " ").trim();
   if (t.length < 30) return undefined;
-  const end = /[.!?]\s/.exec(t.slice(0, limit + 40));
-  const cut = end ? t.slice(0, end.index + 1) : t.slice(0, limit).replace(/\s+\S*$/, "") + "…";
+  const end = /[.!?]\s/.exec(t.slice(0, limit));
+  // A sentence that ends on its own is the whole of it. One that does not is handed over long,
+  // because the card trims it at the end of a line — a job the browser does better than a slice.
+  const cut = end && end.index >= 29 ? t.slice(0, end.index + 1) : t.slice(0, 420);
   return cut.length >= 30 ? cut : undefined;
 }
 

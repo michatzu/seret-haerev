@@ -39,7 +39,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
 
   return (
     <SwipeToFile filmId={row.film.id} title={row.film.title}>
-    <article className="flex flex-col gap-3 rounded-xl border border-line bg-card p-3.5">
+    <article className="relative flex flex-col gap-3 rounded-xl border border-line bg-card p-3.5">
       <div className="flex gap-3">
       <Link href={href} className="shrink-0" aria-label={row.film.title}>
         <Poster filmId={row.film.id} hasPoster={hasPoster(row.film)} alt="" width={56} height={84} />
@@ -70,14 +70,14 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
       </div>
       </div>
       {row.film.shortSynopsis && (
-        /* Native <details>, so a card stays a server component and this works before any script does. */
-        <details className="group -mt-0.5">
-          <summary className="flex min-h-[26px] items-center gap-1.5 text-[13px] font-medium text-muted">
-            <Caret width={14} height={14} className="chev transition-transform" />
-            <span className="group-open:hidden">על מה הסרט</span>
-            <span className="hidden group-open:inline">סגירה</span>
+        /* Native <details>, so a card stays a server component and this works before any script
+           does. The summary is pinned to the corner and takes no room of its own; the sentence
+           appears in the flow, trimmed by the browser at the end of a line rather than mid-word. */
+        <details className="group">
+          <summary className="absolute left-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-md text-muted" aria-label={`על מה הסרט: ${row.film.title}`}>
+            <Caret width={16} height={16} className="chev transition-transform" />
           </summary>
-          <p className="pt-1.5 text-[13.5px] leading-[1.55] text-ink/85">{row.film.shortSynopsis}</p>
+          <p className="line-clamp-3 text-[13.5px] leading-[1.55] text-ink/85">{row.film.shortSynopsis}</p>
         </details>
       )}
       <FilmActions filmId={row.film.id} title={row.film.title} />
