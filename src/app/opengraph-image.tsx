@@ -45,17 +45,13 @@ export default function OgImage() {
           fontFamily: "IBM Plex Sans Hebrew",
         }}
       >
-        <svg width="168" height="168" viewBox="0 0 64 64">
-          <rect x="9" y="11" width="46" height="42" rx="7" fill="#8fd6da" />
-          <g fill="#12151b">
-            <rect x="14" y="16" width="6.5" height="5.2" rx="1.6" />
-            <rect x="14" y="29.4" width="6.5" height="5.2" rx="1.6" />
-            <rect x="14" y="42.8" width="6.5" height="5.2" rx="1.6" />
-            <rect x="43.5" y="16" width="6.5" height="5.2" rx="1.6" />
-            <rect x="43.5" y="29.4" width="6.5" height="5.2" rx="1.6" />
-            <rect x="43.5" y="42.8" width="6.5" height="5.2" rx="1.6" />
+        <svg width="176" height="176" viewBox="0 0 64 64">
+          <rect width="64" height="64" rx="12" fill="#1a1e26" />
+          <rect x="8" y="14" width="48" height="31" rx="3" fill="#ffd36e" />
+          <g fill="#1a1e26">
+            <path d="M14 45a7 7 0 0 1 14 0Z" />
+            <path d="M32 45a7 7 0 0 1 14 0Z" />
           </g>
-          <path d="M38 32a9.5 9.5 0 1 1-10.1-9.5A7.6 7.6 0 0 0 38 32Z" fill="#12151b" />
         </svg>
         <div style={{ display: "flex", fontSize: 92, fontWeight: 600 }}>{visual("סרט הערב")}</div>
         <div style={{ display: "flex", fontSize: 38, color: "#9aa1ad" }}>

@@ -11,7 +11,7 @@ import { getText, pool } from "./http";
 const CACHE_FILE = path.join(process.cwd(), "data", "poster-cache.json");
 interface Hit { v?: number; url: string | null; synopsis?: string | null; at: string }
 /** Bumped when parsing changes, so pages read under the old rules are read again. */
-const PARSE_VERSION = 2;
+const PARSE_VERSION = 3;
 type Cache = Record<string, Hit>;
 const FRESH_MS = 14 * 86_400_000;
 
@@ -39,6 +39,8 @@ const BOILERPLATE = /(\*\s*)?לקוחות יקרים|שימו לב\s*:|ברכי�
 function cleanSynopsis(raw: string | null | undefined, limit = 900): string | null {
   if (!raw) return null;
   let t = decode(raw.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+  // a few cinemas print the heading along with the text
+  t = t.replace(/^\s*(תקציר|סינופסיס|על הסרט|אודות הסרט)\s*[:\-–—]?\s*/u, "");
   const stop = BOILERPLATE.exec(t);
   if (stop && stop.index > 60) t = t.slice(0, stop.index).trim();
   t = t.replace(/\s*\d{2,3}\s*(דקות|דק׳|דק')\s*[,.|].*$/, "").trim();

@@ -82,7 +82,26 @@ const clean = (s: unknown): string | undefined => {
 /** Does this text look like somebody describing a film, rather than an evening or a career? */
 const NEEDS_REPAIR = /^\s*(תקציר|סינופסיס|על הסרט)\b|לאחר ההקרנה|לפני ההקרנה|תתקיים שיחה|הכניסה חופשית|פילמוגרפיה|למוגרפיה|רכישת כרטיסים/;
 
+/**
+ * The card line without asking anybody: the opening sentence of the synopsis.
+ *
+ * It is not a summary — it is the beginning of one — but a synopsis almost always opens by saying
+ * who the film is about, which is the thing somebody scrolling wants to know. Good enough to be
+ * worth having on its own, and the model's sentence simply replaces it where there is a key.
+ */
+export function firstSentence(text: string, limit = 150): string | undefined {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length < 30) return undefined;
+  const end = /[.!?]\s/.exec(t.slice(0, limit + 40));
+  const cut = end ? t.slice(0, end.index + 1) : t.slice(0, limit).replace(/\s+\S*$/, "") + "…";
+  return cut.length >= 30 ? cut : undefined;
+}
+
 export async function addSummaries(films: Film[]): Promise<{ asked: number; repaired: number; dropped: number; skipped: boolean }> {
+  // Every film that has a synopsis gets a card line from its own first sentence, key or no key.
+  for (const f of films) {
+    if (!f.isEvent && f.synopsis) f.shortSynopsis = firstSentence(f.synopsis);
+  }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { asked: 0, repaired: 0, dropped: 0, skipped: true };
   const cache = await loadCache();

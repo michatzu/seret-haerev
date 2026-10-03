@@ -183,3 +183,30 @@ function useHydrated(): boolean {
   return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 const noopSubscribe = () => () => {};
+
+/* ---- the whole store, for backup and for a code shared between devices ---- */
+
+/** Everything filed here, in the shape the sync code stores. */
+export function allEntries(): Store {
+  return read();
+}
+
+/**
+ * Folds a list that arrived from elsewhere into this one, keeping whichever filing is newer.
+ * Nothing is ever dropped: restoring a code on a device that already has films adds to it.
+ */
+export function mergeIn(incoming: Store): number {
+  const store = read();
+  let added = 0;
+  for (const [id, v] of Object.entries(incoming)) {
+    const e = asEntry(v);
+    if (!e) continue;
+    const mine = store[id];
+    if (!mine || e.at > mine.at) {
+      store[id] = { ...e, title: e.title || mine?.title || "" };
+      added++;
+    }
+  }
+  if (added) write(store);
+  return added;
+}
