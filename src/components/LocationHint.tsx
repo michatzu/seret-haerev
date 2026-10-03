@@ -26,11 +26,11 @@ export function LocationHint({ label }: { label: string }) {
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-line bg-card px-3 py-2.5 text-[13px] text-muted">
-      <span>{state === "denied" ? "אין הרשאת מיקום. אפשר לבחור עיר בכפתור למעלה." : `מציג סרטים ליד ${label}, לפי חיבור האינטרנט`}</span>
+      <span>{state === "denied" ? "אין הרשאת מיקום. אפשר לבחור עיר בכפתור למעלה." : `מציג סרטים באזור ${label}`}</span>
       {state !== "denied" && (
         <button type="button" onClick={locate} disabled={state === "busy"} className="flex items-center gap-1 font-medium text-accent">
           <Locate width={14} height={14} />
-          {state === "busy" ? "מאתר…" : "לדייק"}
+          {state === "busy" ? "מאתר…" : "למיקום שלך"}
         </button>
       )}
     </div>

@@ -1,11 +1,12 @@
 /**
  * The code that stands in for an account.
  *
- * Three ordinary words and three digits, which is something a person can read off one phone and
- * type into another without writing it down wrong. There is no name and no password behind it:
- * the code is the whole of it, which is also why it has to be long enough that nobody stumbles
- * into somebody else's — a hundred and twenty-eight words cubed, times a thousand, is about two
- * billion of them.
+ * One ordinary word and four digits — short enough to read off one phone and type into another,
+ * and short enough to say out loud. There is nothing secret in a list of films, so this is not
+ * trying to be a password. What it does have to survive is a typo: restoring a code merges what
+ * it holds into this browser and then keeps that code up to date, so a mistyped code that happens
+ * to belong to somebody else would quietly rewrite their list. The word is what makes that
+ * essentially impossible — four digits alone would land on a real code every time.
  */
 const WORDS = [
   "אבטיח", "אגוז", "אגם", "אורן", "אריה", "ארנב", "בוקר", "בלון", "במה", "ברווז",
@@ -23,20 +24,23 @@ const WORDS = [
   "בלוט", "בננה", "בצל", "ברק", "גבעה", "גדר", "גורילה", "גיר",
 ];
 
-const CODE_RE = /^([֐-׿]+)-([֐-׿]+)-([֐-׿]+)-(\d{3})$/;
+const CODE_RE = /^([֐-׿]+)-(\d{4})$/;
+/** The first codes were three words and three digits; those still have to work. */
+const LEGACY_RE = /^([֐-׿]+)-([֐-׿]+)-([֐-׿]+)-(\d{3})$/;
 
 export function makeCode(random: () => number = Math.random): string {
-  const pick = () => WORDS[Math.floor(random() * WORDS.length)];
-  const digits = String(Math.floor(random() * 1000)).padStart(3, "0");
-  return `${pick()}-${pick()}-${pick()}-${digits}`;
+  const word = WORDS[Math.floor(random() * WORDS.length)];
+  const digits = String(Math.floor(random() * 10000)).padStart(4, "0");
+  return `${word}-${digits}`;
 }
 
 /** The same code however it was typed: spaces for hyphens, stray spaces, a different dash. */
 export function normalizeCode(input: string): string | null {
   const t = input.trim().replace(/[\s_–—]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   const m = CODE_RE.exec(t);
-  if (!m) return null;
-  const words = [m[1], m[2], m[3]];
-  if (!words.every((w) => WORDS.includes(w))) return null;
-  return `${words.join("-")}-${m[4]}`;
+  if (m) return WORDS.includes(m[1]) ? `${m[1]}-${m[2]}` : null;
+  const old = LEGACY_RE.exec(t);
+  if (!old) return null;
+  const words = [old[1], old[2], old[3]];
+  return words.every((w) => WORDS.includes(w)) ? `${words.join("-")}-${old[4]}` : null;
 }

@@ -71,7 +71,8 @@ export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Qu
     <div className="flex flex-wrap items-center justify-center gap-x-2 text-[14px] leading-tight text-muted">
       {words.map((w, i) => (
         <span key={w.key} className="flex items-center">
-          {i > 0 && <span className="me-2 select-none">·</span>}
+          {/* the words sit far enough apart to be separate on their own */}
+          {i > 0 && <span className="me-2 select-none" aria-hidden />}
           <button type="button" onClick={() => setOpen(w.key)} className={`flex min-h-[40px] touch-manipulation items-center gap-[3px] px-0.5 py-2 font-medium ${w.changed ? "text-accent" : "text-ink"}`} aria-haspopup="dialog">
             <span className={w.changed ? "border-b border-accent pb-px" : "fword"}>{w.label}</span>
             <Caret width={12} height={12} className="text-muted" />

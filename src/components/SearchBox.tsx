@@ -45,7 +45,7 @@ export function SearchBox({ q }: { q: Query }) {
           "סרצ׳" is "search" said aloud, and it reads as "סרט". */}
       <FilmStack width={17} height={17} aria-hidden className="pointer-events-none absolute start-3.5 text-muted" />
       {!text && (
-        <span aria-hidden className="pointer-events-none absolute start-9 text-[15px] text-muted">סרצ׳</span>
+        <span aria-hidden className="pointer-events-none absolute start-9 text-[15px] text-muted">סרצ׳..</span>
       )}
       <input
         type="search"

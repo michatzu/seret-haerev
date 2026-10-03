@@ -95,10 +95,10 @@ export function SyncPanel() {
           <div>הרשימות שהקוד מחזיק יתווספו למה שכבר יש כאן. שום דבר לא נמחק.</div>
           <input
             id="sync-code" dir="ltr" value={typed} onChange={(e) => setTyped(e.target.value)}
-            placeholder="ירח-גשם-תפוז-418" autoComplete="off" autoCorrect="off" spellCheck={false}
+            placeholder="תפוז-4829" autoComplete="off" autoCorrect="off" spellCheck={false}
             className="h-11 rounded-lg border border-line bg-ph px-3 text-center text-[15px] text-ink"
           />
-          {state === "not-found" && <div className="text-ink">לא מצאנו קוד כזה. כדאי לבדוק שוב — שלוש מילים ושלוש ספרות.</div>}
+          {state === "not-found" && <div className="text-ink">לא מצאנו קוד כזה. כדאי לבדוק שוב — מילה אחת ואחריה ארבע ספרות.</div>}
           <div className="flex gap-2">
             <button type="button" onClick={restore} disabled={state === "working"} className="h-10 flex-1 rounded-lg border border-accent font-medium text-accent">
               {state === "working" ? "מאחזר…" : "שחזור"}
@@ -114,7 +114,7 @@ export function SyncPanel() {
             <button type="button" onClick={create} disabled={state === "working"} className="h-10 rounded-lg border border-accent font-medium text-accent">
               {state === "working" ? "יוצר…" : "יצירת קוד"}
             </button>
-            <div className="-mt-1">לחיצה אחת. מקבלים קוד של שלוש מילים ושלוש ספרות, ומכאן הכול נשמר לבד.</div>
+            <div className="-mt-1">לחיצה אחת. מקבלים קוד של מילה וארבע ספרות, ומכאן הכול נשמר לבד.</div>
             <button type="button" onClick={() => setEntering(true)} className="mt-1 h-10 rounded-lg border border-line font-medium">יש לי קוד</button>
             <div className="-mt-1">זה הצד השני: אם כבר יצרת קוד במכשיר אחר, כאן מקלידים אותו והרשימות מופיעות.</div>
           </div>
