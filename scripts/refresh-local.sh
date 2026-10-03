@@ -68,7 +68,7 @@ echo "--- $(date -u +%Y-%m-%dT%H:%M:%SZ) refreshing from $(hostname -s)"
 # Start from what is published, not from what happens to be in the tree: a source that fails is
 # carried forward from the previous snapshot, and the published one is the fresher of the two.
 git fetch -q origin data:data 2>/dev/null || true
-for f in snapshot enrich-cache poster-cache geocode-cache; do
+for f in snapshot enrich-cache poster-cache geocode-cache summary-cache; do
   git show "data:$f.json" > "data/$f.json" 2>/dev/null || true
 done
 
@@ -76,7 +76,7 @@ npm run --silent scrape
 
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
-cp data/snapshot.json data/enrich-cache.json data/poster-cache.json data/geocode-cache.json "$STAGE/" 2>/dev/null || cp data/snapshot.json "$STAGE/"
+cp data/snapshot.json data/enrich-cache.json data/poster-cache.json data/geocode-cache.json data/summary-cache.json "$STAGE/" 2>/dev/null || cp data/snapshot.json "$STAGE/"
 # this branch holds data, not an app: tell Vercel not to try to build it
 cp vercel.json "$STAGE/"
 (

@@ -28,6 +28,7 @@ jobs:
           git fetch origin data:data 2>/dev/null || true
           git show data:enrich-cache.json > data/enrich-cache.json 2>/dev/null || true
           git show data:poster-cache.json > data/poster-cache.json 2>/dev/null || true
+          git show data:summary-cache.json > data/summary-cache.json 2>/dev/null || true
           git show data:geocode-cache.json > data/geocode-cache.json 2>/dev/null || true
           # the published snapshot is what a failed source is carried forward from, and it is far
           # fresher than the copy committed to main
@@ -35,11 +36,12 @@ jobs:
       - name: Scrape
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run scrape
       - name: Publish snapshot to the data branch (single commit, no history)
         run: |
           set -e
-          mkdir -p /tmp/data && cp data/snapshot.json data/enrich-cache.json data/poster-cache.json data/geocode-cache.json /tmp/data/ 2>/dev/null || cp data/snapshot.json /tmp/data/
+          mkdir -p /tmp/data && cp data/snapshot.json data/enrich-cache.json data/poster-cache.json data/geocode-cache.json data/summary-cache.json /tmp/data/ 2>/dev/null || cp data/snapshot.json /tmp/data/
           # this branch holds data, not an app: tell Vercel not to try to build it
           cp vercel.json /tmp/data/
           cd /tmp/data
