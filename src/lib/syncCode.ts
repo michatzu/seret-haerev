@@ -1,46 +1,27 @@
 /**
- * The code that stands in for an account.
+ * The code that stands in for an account: four digits, chosen by whoever is keeping the list.
  *
- * One ordinary word and four digits — short enough to read off one phone and type into another,
- * and short enough to say out loud. There is nothing secret in a list of films, so this is not
- * trying to be a password. What it does have to survive is a typo: restoring a code merges what
- * it holds into this browser and then keeps that code up to date, so a mistyped code that happens
- * to belong to somebody else would quietly rewrite their list. The word is what makes that
- * essentially impossible — four digits alone would land on a real code every time.
+ * There is nothing secret in a list of films, so this is not trying to be a password — it is
+ * trying to be something you remember. Four digits are short enough that two people will
+ * sometimes want the same ones, which is why saving says so rather than quietly joining them,
+ * and why restoring only ever adds to what a browser already has. Nothing a code does can empty
+ * a list; the worst a wrong one can do is put films in it that somebody else chose.
  */
-const WORDS = [
-  "אבטיח", "אגוז", "אגם", "אורן", "אריה", "ארנב", "בוקר", "בלון", "במה", "ברווז",
-  "גג", "גזר", "גיטרה", "גלגל", "גמל", "גן", "גשם", "דבש", "דגל", "דלת",
-  "דרור", "הר", "ורד", "זברה", "זית", "חוף", "חולית", "חלון", "חלב", "חתול",
-  "טווס", "טיול", "ים", "יונה", "ירח", "כביש", "כוכב", "כינור", "כלב", "כרמל",
-  "לבנה", "לימון", "לוויתן", "מגדל", "מזרקה", "מטוס", "מלפפון", "מנגו", "מפרש", "מראה",
-  "נהר", "נחליאלי", "נמר", "נעל", "סוס", "סירה", "סלע", "ספר", "סתיו", "עגורן",
-  "עדשה", "עוגה", "עיפרון", "עלה", "ענן", "עפיפון", "ערמון", "פטרייה", "פילון", "פנס",
-  "פסנתר", "פרח", "צבי", "צדף", "צוק", "ציפור", "צל", "קיפוד", "קיץ", "קמח",
-  "קפה", "קרח", "קשת", "ראי", "רימון", "רכבת", "רעם", "שביל", "שדה", "שומר",
-  "שועל", "שחף", "שיר", "שלג", "שמש", "שעון", "שקד", "תאנה", "תוכי", "תות",
-  "תיבה", "תמר", "תנור", "תפוז", "תפוח", "תרנגול", "אבן", "אגס", "אדמה", "אוהל",
-  "אופק", "אור", "איל", "אלון", "אפרסק", "ארמון", "בוסתן", "בז", "ביצה", "בית",
-  "בלוט", "בננה", "בצל", "ברק", "גבעה", "גדר", "גורילה", "גיר",
-];
+const CODE_RE = /^(\d{4})$/;
+/** The first codes were words and digits; those still have to work. */
+const LEGACY_RE = /^([֐-׿]+(?:-[֐-׿]+){0,2})-(\d{3,4})$/;
 
-const CODE_RE = /^([֐-׿]+)-(\d{4})$/;
-/** The first codes were three words and three digits; those still have to work. */
-const LEGACY_RE = /^([֐-׿]+)-([֐-׿]+)-([֐-׿]+)-(\d{3})$/;
-
-export function makeCode(random: () => number = Math.random): string {
-  const word = WORDS[Math.floor(random() * WORDS.length)];
-  const digits = String(Math.floor(random() * 10000)).padStart(4, "0");
-  return `${word}-${digits}`;
-}
-
-/** The same code however it was typed: spaces for hyphens, stray spaces, a different dash. */
+/** The same code however it was typed: spaces, dashes, Arabic-Indic digits from a phone keypad. */
 export function normalizeCode(input: string): string | null {
-  const t = input.trim().replace(/[\s_–—]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  const m = CODE_RE.exec(t);
-  if (m) return WORDS.includes(m[1]) ? `${m[1]}-${m[2]}` : null;
+  const t = input
+    .trim()
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[\s_–—]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const m = CODE_RE.exec(t.replace(/-/g, ""));
+  if (m) return m[1];
   const old = LEGACY_RE.exec(t);
-  if (!old) return null;
-  const words = [old[1], old[2], old[3]];
-  return words.every((w) => WORDS.includes(w)) ? `${words.join("-")}-${old[4]}` : null;
+  return old ? `${old[1]}-${old[2]}` : null;
 }

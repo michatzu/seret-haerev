@@ -7,7 +7,7 @@
  * that offers it says so.
  */
 import { kvGet, kvReady, kvSet, kvSetIfAbsent } from "@/lib/kv";
-import { makeCode, normalizeCode } from "@/lib/syncCode";
+import { normalizeCode } from "@/lib/syncCode";
 
 /** A list of a few hundred films is a few tens of kilobytes; well past that is not a list. */
 const MAX_BYTES = 256 * 1024;
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (!kvReady()) return Response.json({ error: "unavailable" }, { status: 503 });
   const body = await req.text();
   if (body.length > MAX_BYTES) return Response.json({ error: "too-big" }, { status: 413 });
-  let parsed: { code?: unknown; films?: unknown };
+  let parsed: { code?: unknown; films?: unknown; claim?: unknown };
   try {
     parsed = JSON.parse(body) as typeof parsed;
   } catch {
@@ -35,21 +35,20 @@ export async function POST(req: Request) {
   if (!parsed.films || typeof parsed.films !== "object" || Array.isArray(parsed.films)) {
     return Response.json({ error: "bad-films" }, { status: 400 });
   }
+  const code = typeof parsed.code === "string" ? normalizeCode(parsed.code) : null;
+  if (!code) return Response.json({ error: "bad-code" }, { status: 400 });
   const payload = JSON.stringify({ films: parsed.films, at: new Date().toISOString() });
 
-  // Writing to a code you already have replaces what is there; a new one has to be free first,
-  // or an unlucky collision would hand somebody else's list to a stranger.
-  const given = typeof parsed.code === "string" ? normalizeCode(parsed.code) : null;
-  if (given) {
-    await kvSet(key(given), payload);
-    return Response.json({ code: given });
-  }
-  for (let i = 0; i < 5; i++) {
-    const code = makeCode();
-    if ((await kvSetIfAbsent(key(code), payload)) === 1) {
-      await kvSet(key(code), payload);
-      return Response.json({ code });
+  // Claiming a code for the first time must not land on one somebody else is already keeping a
+  // list under, so it is only written if nothing is there. Afterwards the browser that holds it
+  // simply keeps it up to date.
+  if (parsed.claim === true) {
+    if ((await kvSetIfAbsent(key(code), payload)) !== 1) {
+      return Response.json({ error: "taken" }, { status: 409 });
     }
+    await kvSet(key(code), payload);
+    return Response.json({ code });
   }
-  return Response.json({ error: "no-code" }, { status: 500 });
+  await kvSet(key(code), payload);
+  return Response.json({ code });
 }

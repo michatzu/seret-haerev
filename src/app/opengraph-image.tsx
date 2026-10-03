@@ -47,10 +47,11 @@ export default function OgImage() {
       >
         <svg width="176" height="176" viewBox="0 0 64 64">
           <rect width="64" height="64" rx="12" fill="#1a1e26" />
-          <rect x="8" y="14" width="48" height="31" rx="3" fill="#ffd36e" />
+          <rect x="8" y="13" width="48" height="31" rx="3" fill="#ffd36e" />
           <g fill="#1a1e26">
-            <path d="M14 45a7 7 0 0 1 14 0Z" />
-            <path d="M32 45a7 7 0 0 1 14 0Z" />
+            <path d="M14 48a7.6 7.6 0 0 1 15.2 0Z" />
+            <path d="M34 48a7.6 7.6 0 0 1 15.2 0Z" />
+            <rect x="8" y="44" width="48" height="6" />
           </g>
         </svg>
         <div style={{ display: "flex", fontSize: 92, fontWeight: 600 }}>{visual("סרט הערב")}</div>
