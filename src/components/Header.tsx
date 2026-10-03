@@ -10,7 +10,7 @@ export function Header({ q, place, venues, genres }: { q: Query; place: Resolved
       <div className="mx-auto max-w-[520px]">
         <div className="flex min-h-[44px] items-center justify-between gap-2">
           <Link href="/" className="font-serif text-[26px] font-bold leading-none text-ink">סרט הערב</Link>
-          <LocationButton label={place.label} source={place.source} />
+          <LocationButton label={place.label} source={place.source} here={{ lat: place.lat, lng: place.lng }} />
         </div>
         <FilterSentence q={q} venues={venues} genres={genres} />
       </div>

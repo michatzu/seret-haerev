@@ -108,6 +108,14 @@ export interface Snapshot {
   films: Film[];
   screenings: Screening[];
   sources: SourceReport[];
+  /**
+   * Every film that has ever been published here and is no longer playing, by id.
+   *
+   * A list someone keeps outlives the schedule by months, and without this the site would have
+   * nothing to call a film it stopped carrying in March. Names only, and they fall out after a
+   * year and a half.
+   */
+  retired?: Record<string, { title: string; year?: number; seen?: string }>;
 }
 
 /* ---- raw shapes produced by adapters, before films are unified across chains ---- */

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "../BackLink";
 import { ChevronForward, Film as FilmIcon, Play } from "../Icons";
 import { PosterZoom } from "./PosterZoom";
 import { hasPoster } from "../Poster";
@@ -23,7 +23,7 @@ export function Hero({ film, backHref }: { film: Film; backHref: string }) {
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,10,14,0.25)_0%,rgba(8,10,14,0.5)_55%,rgba(8,10,14,0.72)_100%)]" />
       <div className="relative mx-auto flex w-full max-w-[520px] flex-col gap-4 px-4 pb-5 pt-[max(16px,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between">
-          <Link href={backHref} aria-label="חזרה" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15"><ChevronForward width={20} height={20} /></Link>
+          <BackLink href={backHref} aria-label="חזרה" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15"><ChevronForward width={20} height={20} /></BackLink>
         </div>
         <div className="flex gap-4">
           {hasPoster(film) ? (

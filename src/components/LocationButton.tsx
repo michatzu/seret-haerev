@@ -1,28 +1,49 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomSheet, SheetOption } from "./BottomSheet";
 import { Caret, Locate, Pin } from "./Icons";
-import { CITIES, type Place } from "@/lib/geo";
+import { CITIES, distanceKm, type Place } from "@/lib/geo";
+import { currentPosition, locationAllowed, remembered, savePlace } from "@/lib/placeStore";
 
-const COOKIE = "loc";
+/** Far enough from where the list thinks you are to be worth redrawing it. */
+const MOVED_KM = 1.5;
 
-function setLocCookie(p: Place) {
-  document.cookie = `${COOKIE}=${p.lat.toFixed(5)},${p.lng.toFixed(5)},${encodeURIComponent(p.label)}; path=/; max-age=31536000; SameSite=Lax`;
-}
-
-export function LocationButton({ label, source }: { label: string; source: "cookie" | "ip" | "default" }) {
+export function LocationButton({ label, source, here }: { label: string; source: "cookie" | "ip" | "default"; here: { lat: number; lng: number } }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const close = useCallback(() => setOpen(false), []);
+  const settled = useRef(false);
+
+  /**
+   * Once per load, before anybody has to think about it: if the permission is already granted,
+   * the position is simply read and the list follows the viewer from city to city. Failing that,
+   * a choice this browser remembers is written back as a cookie — the home-screen app and Safari
+   * do not share one, and Safari throws away the kind a script writes.
+   */
+  useEffect(() => {
+    if (settled.current) return;
+    settled.current = true;
+    let cancelled = false;
+    (async () => {
+      if (await locationAllowed()) {
+        const p = await currentPosition();
+        if (p && !cancelled && distanceKm(p, here) > MOVED_KM && (await savePlace(p))) router.refresh();
+        return;
+      }
+      if (source === "cookie") return;
+      const kept = remembered();
+      if (kept && !cancelled && (await savePlace(kept))) router.refresh();
+    })();
+    return () => { cancelled = true; };
+  }, [here, source, router]);
 
   const choose = (p: Place) => {
-    setLocCookie(p);
     setOpen(false);
-    router.refresh();
+    void savePlace(p).then(() => router.refresh());
   };
 
   /** Asks the device for its position (this is what triggers the browser's permission prompt). */

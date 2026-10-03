@@ -1,7 +1,7 @@
 "use client";
 
 import { Bookmark, BookmarkFilled, Check, Eye, EyeOff } from "./Icons";
-import { setStatus, useFilmLists, type FilmStatus } from "@/lib/filmLists";
+import { setStatus, statusOf, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 import { track } from "@/lib/track";
 
 /**
@@ -18,7 +18,7 @@ const ACTIONS: { status: FilmStatus; label: string; off: typeof Eye; on: typeof 
 
 export function FilmActions({ filmId, title, size = "card" }: { filmId: string; title: string; size?: "card" | "page" }) {
   const { store, ready } = useFilmLists();
-  const current = store[filmId];
+  const current = statusOf(store, filmId);
   const big = size === "page";
 
   return (

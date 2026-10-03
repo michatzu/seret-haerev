@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Close } from "./Icons";
 import { Poster } from "./Poster";
-import { clearList, idsWith, setStatus, STATUS_LABEL, STATUSES, useFilmLists, type FilmStatus } from "@/lib/filmLists";
+import { clearList, entriesWith, idsWith, rememberTitles, setStatus, STATUS_LABEL, STATUSES, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 import { languageName } from "@/lib/format";
 
 interface Row { id: string; title: string; year?: number; language?: string; imdbRating?: number; hasPoster: boolean; screenings: number }
@@ -20,9 +20,9 @@ export function ListsView() {
   const [tab, setTab] = useState<FilmStatus>("want");
   const [cache, setCache] = useState<{ key: string; rows: Row[] } | null>(null);
 
-  const ids = idsWith(store, tab);
+  const entries = entriesWith(store, tab);
+  const ids = entries.map((e) => e.id);
   const key = `${tab}:${ids.join(",")}`;
-  const loading = ready && ids.length > 0 && cache?.key !== key;
 
   useEffect(() => {
     const list = key.slice(key.indexOf(":") + 1); // the ids, straight from the key this effect runs on
@@ -30,13 +30,13 @@ export function ListsView() {
     const ctrl = new AbortController();
     fetch(`/api/films?ids=${encodeURIComponent(list)}`, { signal: ctrl.signal })
       .then((r) => r.json())
-      .then((d: { films: Row[] }) => setCache({ key, rows: d.films }))
+      .then((d: { films: Row[] }) => { setCache({ key, rows: d.films }); rememberTitles(d.films); })
       .catch(() => { /* offline or aborted; whatever is on screen stays */ });
     return () => ctrl.abort();
   }, [key, ready]);
 
-  const marked = new Set(ids);
-  const rows = (cache?.rows ?? []).filter((r) => marked.has(r.id));
+  // The list is whatever this browser filed; the schedule only adds to it what it still knows.
+  const live = new Map((cache?.rows ?? []).map((r) => [r.id, r] as const));
 
   return (
     <>
@@ -63,37 +63,41 @@ export function ListsView() {
       </header>
 
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-2.5 px-4 pb-10 pt-3.5">
-        {!ready || loading ? (
+        {!ready ? (
           <div className="px-1 py-8 text-center text-[15px] text-muted">טוען…</div>
-        ) : !ids.length ? (
+        ) : !entries.length ? (
           <div className="rounded-xl border border-line bg-card px-4 py-8 text-center text-[15px] leading-[1.6] text-muted">{EMPTY_TEXT[tab]}</div>
         ) : (
           <>
-            {rows.map((f) => (
-              <article key={f.id} className="flex items-center gap-3 rounded-xl border border-line bg-card p-3.5">
-                <Link href={`/film/${f.id}`} className="shrink-0" aria-label={f.title}>
-                  <Poster filmId={f.id} hasPoster={f.hasPoster} alt="" width={44} height={66} />
-                </Link>
-                <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                  <Link href={`/film/${f.id}`} className="truncate font-serif text-[17px] font-bold leading-[1.2] text-ink">{f.title}</Link>
-                  <div className="text-[12px] text-muted">
-                    {[languageName(f.language), f.year, f.imdbRating ? `IMDb ${f.imdbRating.toFixed(1)}` : undefined].filter(Boolean).join(" · ")}
+            {entries.map((e) => {
+              const f = live.get(e.id);
+              const title = f?.title || e.title || "סרט";
+              const year = f?.year ?? e.year;
+              const showing = (f?.screenings ?? 0) > 0;
+              const poster = <Poster filmId={e.id} hasPoster={!!f?.hasPoster} alt="" width={44} height={66} />;
+              return (
+                <article key={e.id} className="flex items-center gap-3 rounded-xl border border-line bg-card p-3.5">
+                  {f ? <Link href={`/film/${e.id}`} className="shrink-0" aria-label={title}>{poster}</Link> : poster}
+                  <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                    {f
+                      ? <Link href={`/film/${e.id}`} className="truncate font-serif text-[17px] font-bold leading-[1.2] text-ink">{title}</Link>
+                      : <div className="truncate font-serif text-[17px] font-bold leading-[1.2] text-ink">{title}</div>}
+                    <div className="text-[12px] text-muted">
+                      {[languageName(f?.language), year, f?.imdbRating ? `IMDb ${f.imdbRating.toFixed(1)}` : undefined].filter(Boolean).join(" · ")}
+                    </div>
+                    <div className="text-[12px] text-muted">{showing ? "מוקרן עכשיו" : "לא בהקרנות כרגע"}</div>
                   </div>
-                  {f.screenings > 0 ? <div className="text-[12px] text-muted">מוקרן עכשיו</div> : <div className="text-[12px] text-muted">ירד מהמסכים</div>}
-                </div>
-                <button type="button" onClick={() => setStatus(f.id, tab, f.title)} aria-label={`הוצאה מהרשימה: ${f.title}`} title="הוצאה מהרשימה"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted">
-                  <Close width={17} height={17} />
-                </button>
-              </article>
-            ))}
+                  <button type="button" onClick={() => setStatus(e.id, tab, title)} aria-label={`הוצאה מהרשימה: ${title}`} title="הוצאה מהרשימה"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted">
+                    <Close width={17} height={17} />
+                  </button>
+                </article>
+              );
+            })}
             <button type="button" onClick={() => { if (confirm(`לרוקן את הרשימה ״${STATUS_LABEL[tab]}״?`)) clearList(tab); }}
               className="mt-2 h-11 self-center px-4 text-[14px] font-medium text-muted">
               ריקון הרשימה
             </button>
-            {ids.length > rows.length && !loading && (
-              <p className="px-1 text-center text-[13px] text-muted">{ids.length - rows.length} סרטים ברשימה כבר אינם מוקרנים.</p>
-            )}
           </>
         )}
       </main>

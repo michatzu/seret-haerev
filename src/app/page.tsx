@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { SortSegment } from "@/components/SortSegment";
 import { SearchBox } from "@/components/SearchBox";
+import { LocationHint } from "@/components/LocationHint";
 import { FilmCard } from "@/components/FilmCard";
 import { LazyGroup } from "@/components/LazyGroup";
 import { getData } from "@/lib/data";
@@ -27,6 +28,7 @@ export default async function Home(props: PageProps<"/">) {
     <>
       <Header q={shown} place={place} venues={venueOptions(data.venues.values(), place)} genres={genreOptions(data.films.values())} />
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-3 px-4 pb-10 pt-3.5">
+        {place.source !== "cookie" && <LocationHint label={place.label} />}
         <SearchBox q={shown} />
         <SortSegment q={shown} />
 

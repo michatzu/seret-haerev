@@ -21,14 +21,53 @@ const KEY = "film-lists";
 const LEGACY_KEY = "watched"; // the first version stored only an array of watched ids
 const EVENT = "film-lists-change";
 
-type Store = Partial<Record<string, FilmStatus>>;
+/**
+ * What is kept about a filed film, beyond which list it is in.
+ *
+ * The schedule only ever holds what is playing now, so a film filed in March is a stranger to the
+ * server by May — and a list that asks the server who its films are is a list that empties itself.
+ * The name is written down at the moment of filing, so the list can always draw itself, with or
+ * without a schedule and with or without a network.
+ */
+export interface Entry {
+  status: FilmStatus;
+  title: string;
+  year?: number;
+  /** when it was filed, so a list can be read newest first */
+  at: number;
+}
+
+type Store = Partial<Record<string, Entry>>;
+export type { Store };
+
+/** The status of one film, or nothing if it is in no list. */
+export const statusOf = (store: Store, id: string): FilmStatus | undefined => store[id]?.status;
+
+/** An older store kept the status alone; a film filed then has no name until one is learnt. */
+function asEntry(v: unknown): Entry | undefined {
+  if (typeof v === "string" && (STATUSES as string[]).includes(v)) return { status: v as FilmStatus, title: "", at: 0 };
+  if (v && typeof v === "object") {
+    const e = v as Partial<Entry>;
+    if (typeof e.status === "string" && (STATUSES as string[]).includes(e.status)) {
+      return { status: e.status, title: typeof e.title === "string" ? e.title : "", year: typeof e.year === "number" ? e.year : undefined, at: typeof e.at === "number" ? e.at : 0 };
+    }
+  }
+  return undefined;
+}
 
 function read(): Store {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Store;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const store: Store = {};
+        for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
+          const e = asEntry(v);
+          if (e) store[id] = e;
+        }
+        return store;
+      }
     }
     // migrate the old watched-only list on first read
     const legacy = localStorage.getItem(LEGACY_KEY);
@@ -36,7 +75,7 @@ function read(): Store {
       const ids = JSON.parse(legacy) as unknown;
       if (Array.isArray(ids)) {
         const store: Store = {};
-        for (const id of ids) if (typeof id === "string") store[id] = "watched";
+        for (const id of ids) if (typeof id === "string") store[id] = { status: "watched", title: "", at: 0 };
         localStorage.setItem(KEY, JSON.stringify(store));
         localStorage.removeItem(LEGACY_KEY);
         return store;
@@ -54,19 +93,30 @@ function write(store: Store) {
 }
 
 /** The most recent filing, so it can be undone; kept in memory only, it is not worth persisting. */
-let last: { id: string; title: string; status: FilmStatus; previous: FilmStatus | undefined; at: number } | null = null;
+let last: { id: string; title: string; status: FilmStatus; previous: Entry | undefined; at: number } | null = null;
 export const lastChange = () => last;
 
 /** Sets the status, or clears it when the film already carries it. Returns the status now in force. */
-export function setStatus(id: string, status: FilmStatus, title = ""): FilmStatus | undefined {
+export function setStatus(id: string, status: FilmStatus, title = "", year?: number): FilmStatus | undefined {
   const store = read();
-  const previous = store[id];
-  const next = previous === status ? undefined : status;
-  if (next) store[id] = next;
+  const was = store[id];
+  const next = was?.status === status ? undefined : status;
+  if (next) store[id] = { status: next, title: title || was?.title || "", year: year ?? was?.year, at: Date.now() };
   else delete store[id];
-  last = next ? { id, title, status: next, previous, at: Date.now() } : null;
+  last = next ? { id, title, status: next, previous: was, at: Date.now() } : null;
   write(store);
   return next;
+}
+
+/** Writes down a name we have only just learnt, for a film filed before we kept one. */
+export function rememberTitles(known: { id: string; title: string; year?: number }[]) {
+  const store = read();
+  let changed = false;
+  for (const f of known) {
+    const e = store[f.id];
+    if (e && !e.title && f.title) { store[f.id] = { ...e, title: f.title, year: e.year ?? f.year }; changed = true; }
+  }
+  if (changed) write(store);
 }
 
 /** Puts the last filed film back where it was. */
@@ -81,7 +131,7 @@ export function undoLast() {
 
 export function clearList(status: FilmStatus) {
   const store = read();
-  for (const [id, s] of Object.entries(store)) if (s === status) delete store[id];
+  for (const [id, e] of Object.entries(store)) if (e?.status === status) delete store[id];
   write(store);
 }
 
@@ -118,7 +168,14 @@ export function useFilmLists(): { store: Store; ready: boolean } {
 
 /** Ids carrying one status, most recently added last (object insertion order). */
 export function idsWith(store: Store, status: FilmStatus): string[] {
-  return Object.entries(store).filter(([, s]) => s === status).map(([id]) => id);
+  return entriesWith(store, status).map((e) => e.id);
+}
+
+/** Everything filed under one status, newest first, each with whatever was known when it was filed. */
+export function entriesWith(store: Store, status: FilmStatus): (Entry & { id: string })[] {
+  return Object.entries(store)
+    .flatMap(([id, e]) => (e && e.status === status ? [{ ...e, id }] : []))
+    .sort((a, b) => b.at - a.at);
 }
 
 /** False during the server render and the first client render, true afterwards. */

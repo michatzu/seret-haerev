@@ -10,6 +10,7 @@ import { scrapeSmarticket } from "@/scraper/smarticket";
 import { scrapeBeitGabriel } from "@/scraper/betgabriel";
 import { buildSnapshot, classifyAudience, mergeByTmdbId, mergeLabelledScreenings } from "@/scraper/normalize";
 import { carryForward } from "@/scraper/carry";
+import { rememberRetired } from "@/scraper/retired";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
 
@@ -57,13 +58,14 @@ async function main() {
   classifyAudience(snapshot);
   console.log(enriched.skipped ? "enrich: skipped (no TMDB_API_KEY)" : `enrich: tmdb=${enriched.matched}/${snapshot.films.length} imdb=${enriched.rated} merged=${mergedByTmdb} ${Date.now() - t1}ms`);
   const t2 = Date.now();
+  const retired = rememberRetired(snapshot, previous);
   const posters = await fillPosters(snapshot.films);
   console.log(`pages: posters=${posters.posters} synopses=${posters.synopses}, ${snapshot.films.filter((f) => !f.posterUrl && !f.isEvent).length} still missing ${Date.now() - t2}ms`);
   const out = path.join(process.cwd(), "data", "snapshot.json");
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snapshot));
   for (const r of reports) console.log(`${r.ok ? "ok " : "ERR"} ${r.chain.padEnd(11)} films=${String(r.films).padStart(4)} screenings=${String(r.screenings).padStart(5)} ${r.ms}ms ${r.error ?? ""}`);
-  console.log(`snapshot: ${snapshot.films.length} films, ${snapshot.screenings.length} screenings, ${snapshot.venues.length} venues -> ${path.relative(process.cwd(), out)}`);
+  console.log(`snapshot: ${snapshot.films.length} films, ${snapshot.screenings.length} screenings, ${snapshot.venues.length} venues, ${retired} names kept for films that left -> ${path.relative(process.cwd(), out)}`);
 }
 
 main().catch((e) => {
