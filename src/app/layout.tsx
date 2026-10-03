@@ -4,6 +4,7 @@ import { UndoBar } from "@/components/UndoBar";
 import { TabBar } from "@/components/TabBar";
 import { Analytics } from "@vercel/analytics/next";
 import { Tracking } from "@/components/Tracking";
+import { InstallCapture } from "@/components/InstallCapture";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
 import "./globals.css";
 
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <TabBar />
         <UndoBar />
         <Tracking />
+        <InstallCapture />
         <Analytics />
       </body>
     </html>

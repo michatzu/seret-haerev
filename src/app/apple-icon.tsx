@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { CUE, HEADS, SCREEN } from "@/lib/markShapes";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -10,11 +11,9 @@ export default function AppleIcon() {
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#12151b" }}>
         <svg width="180" height="180" viewBox="0 0 64 64">
           <rect width="64" height="64" fill="#12151b" />
-          <rect x="8" y="13" width="48" height="31" rx="3" fill="#ffd36e" />
-          <g fill="#12151b">
-        <path d="M14 50a7.6 12.5 0 0 1 15.2 0Z" />
-        <path d="M34 50a7.6 12.5 0 0 1 15.2 0Z" />
-          </g>
+          <rect {...SCREEN} fill="#ffd36e" />
+          <circle cx={CUE.cx} cy={CUE.cy} r={CUE.r} fill="none" stroke="#12151b" strokeWidth={CUE.strokeWidth} />
+          <g fill="#12151b">{HEADS.map((d) => <path key={d} d={d} />)}</g>
         </svg>
       </div>
     ),

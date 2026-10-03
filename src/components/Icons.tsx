@@ -88,3 +88,12 @@ export const FilmStack = (p: SVGProps<SVGSVGElement>) => (
     <path d="M6.6 7.5v12M14.4 7.5v12" />
   </svg>
 );
+
+/** The iOS share control: a box with an arrow leaving the top of it. */
+export const ShareIos = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M12 3.5v11" />
+    <path d="M8.5 7 12 3.5 15.5 7" />
+    <path d="M7.5 11H5.5v9.5h13V11h-2" />
+  </svg>
+);

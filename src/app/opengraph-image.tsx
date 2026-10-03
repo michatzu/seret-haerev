@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { CUE, HEADS, SCREEN } from "@/lib/markShapes";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -47,11 +48,9 @@ export default function OgImage() {
       >
         <svg width="176" height="176" viewBox="0 0 64 64">
           <rect width="64" height="64" rx="12" fill="#1a1e26" />
-          <rect x="8" y="13" width="48" height="31" rx="3" fill="#ffd36e" />
-          <g fill="#1a1e26">
-        <path d="M14 50a7.6 12.5 0 0 1 15.2 0Z" />
-        <path d="M34 50a7.6 12.5 0 0 1 15.2 0Z" />
-          </g>
+          <rect {...SCREEN} fill="#ffd36e" />
+          <circle cx={CUE.cx} cy={CUE.cy} r={CUE.r} fill="none" stroke="#1a1e26" strokeWidth={CUE.strokeWidth} />
+          <g fill="#1a1e26">{HEADS.map((d) => <path key={d} d={d} />)}</g>
         </svg>
         <div style={{ display: "flex", fontSize: 92, fontWeight: 600 }}>{visual("סרט הערב")}</div>
         <div style={{ display: "flex", fontSize: 38, color: "#9aa1ad" }}>

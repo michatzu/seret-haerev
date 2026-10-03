@@ -6,6 +6,7 @@ import { Close } from "./Icons";
 import { Poster } from "./Poster";
 import { SyncPanel } from "./SyncPanel";
 import { SiteTitle } from "./SiteTitle";
+import { InstallPrompt } from "./InstallPrompt";
 import { clearList, entriesWith, idsWith, rememberTitles, setStatus, STATUS_LABEL, STATUSES, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 import { languageName } from "@/lib/format";
 
@@ -107,6 +108,7 @@ export function ListsView() {
           </>
         )}
         {ready && <SyncPanel />}
+        {ready && <InstallPrompt />}
       </main>
     </>
   );

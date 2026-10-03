@@ -18,7 +18,7 @@ const CODE_EVENT = "sync-code-change";
 const PUSH_DELAY_MS = 2500;
 
 /** localStorage is a store outside React, read the way the film lists read theirs. */
-const readCode = () => { try { return localStorage.getItem(CODE_KEY); } catch { return null; } };
+const readCode = () => { try { return localStorage.getItem(CODE_KEY) || null; } catch { return null; } };
 function writeCode(code: string) {
   try { localStorage.setItem(CODE_KEY, code); } catch { /* nothing depends on it */ }
   window.dispatchEvent(new CustomEvent(CODE_EVENT));
@@ -45,14 +45,14 @@ export function SyncPanel() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code: withCode, films, claim }),
     });
-    if (res.status === 503) { setState("off"); return false; }
+    if (res.status === 503) { setState(code ? "error" : "off"); return false; }
     if (res.status === 409) { setState("taken"); return false; }
     if (!res.ok) { setState("error"); return false; }
     pushed.current = JSON.stringify(films);
     writeCode(withCode);
     setState("saved");
     return true;
-  }, []);
+  }, [code]);
 
   // While a code is in hand, every change finds its way up a couple of seconds later.
   useEffect(() => {
@@ -68,6 +68,9 @@ export function SyncPanel() {
 
   const save = async () => { setState("working"); await send(digits, true); };
 
+  /** Lets go of the code here without touching what is stored under it. */
+  const forget = () => { writeCode(""); setTyped(""); setState("idle"); };
+
   const restore = async () => {
     setState("working");
     const res = await fetch(`/api/sync?code=${encodeURIComponent(digits)}`);
@@ -80,7 +83,9 @@ export function SyncPanel() {
     setState("saved");
   };
 
-  if (state === "off") return null;
+  // A store that is unreachable means there is nothing to offer — but somebody who already has
+  // a code must still be able to read it, which is exactly when they are most likely to want it.
+  if (state === "off" && !code) return null;
 
   const field = (
     <input
@@ -95,13 +100,17 @@ export function SyncPanel() {
     <section className="mt-4 flex flex-col gap-2 rounded-xl border border-line bg-card px-4 py-3.5 text-center text-[13px] leading-[1.6] text-muted">
       {code ? (
         <>
-          <div>הרשימות שמורות תחת הקוד הזה, ומתעדכנות לבד:</div>
+          <div>הרשימות שמורות אצלנו תחת הקוד:</div>
           <div className="select-all rounded-lg bg-ph px-3 py-2.5 text-[22px] font-semibold tracking-[0.3em] text-ink">{code}</div>
+          <div>כל סרט שמסמנים מכאן נשמר תחתיו מעצמו, בלי ללחוץ על כלום. מי שמקליד אותו בטלפון אחר רואה שם את אותן רשימות.</div>
           {state === "error" && <div className="text-ink">לא הצלחנו לשמור כרגע. ננסה שוב בשינוי הבא.</div>}
+          <button type="button" onClick={forget} className="h-9 self-center px-4 font-medium text-muted underline decoration-dotted">
+            החלפת קוד
+          </button>
         </>
       ) : (
         <>
-          <div>הרשימות נשמרות רק בדפדפן הזה. קוד בן ארבע ספרות ישמור אותן גם אצלנו, בלי שם ובלי סיסמה.</div>
+          <div>אפשר להזין קוד כדי לשמור את הרשימות לפעם הבאה, או לשחזר אחרות.</div>
           <div className="pt-0.5">{field}</div>
           {state === "taken" && <div className="text-ink">הקוד הזה כבר תפוס. אפשר לבחור אחר, או ללחוץ ״שחזור״ אם הוא שלך.</div>}
           {state === "not-found" && <div className="text-ink">אין רשימות שמורות תחת הקוד הזה.</div>}

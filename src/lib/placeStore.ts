@@ -51,13 +51,25 @@ export async function locationAllowed(): Promise<boolean> {
   }
 }
 
-export function currentPosition(timeout = 8000): Promise<Place | null> {
+export type PositionFailure = "denied" | "unavailable" | "timeout";
+
+/**
+ * Where the device says it is, or why it would not say.
+ *
+ * The timeout has to cover the permission dialog as well as the fix, because the clock starts the
+ * moment we ask and the person has not even seen the question yet. Eight seconds was enough to
+ * tell somebody who had just pressed "allow" that we had failed — which is both wrong and the
+ * least helpful thing to say at that moment.
+ */
+export function currentPosition(timeout = 30_000): Promise<Place | PositionFailure> {
   return new Promise((resolve) => {
-    if (!("geolocation" in navigator)) return resolve(null);
+    if (!("geolocation" in navigator)) return resolve("unavailable");
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "המיקום שלי" }),
-      () => resolve(null),
+      (err) => resolve(err.code === err.PERMISSION_DENIED ? "denied" : err.code === err.TIMEOUT ? "timeout" : "unavailable"),
       { enableHighAccuracy: false, timeout, maximumAge: 2 * 60_000 },
     );
   });
 }
+
+export const gotPlace = (r: Place | PositionFailure): r is Place => typeof r === "object";

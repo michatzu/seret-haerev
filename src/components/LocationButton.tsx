@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomSheet, SheetOption } from "./BottomSheet";
 import { Caret, Locate, Pin } from "./Icons";
 import { CITIES, distanceKm, type Place } from "@/lib/geo";
-import { currentPosition, locationAllowed, remembered, savePlace } from "@/lib/placeStore";
+import { currentPosition, gotPlace, locationAllowed, remembered, savePlace } from "@/lib/placeStore";
 
 /** Far enough from where the list thinks you are to be worth redrawing it. */
 const MOVED_KM = 1.5;
@@ -36,7 +36,7 @@ export function LocationButton({ label, source, here }: { label: string; source:
         const p = await currentPosition();
         // Somebody who has allowed this once means it: the device wins over a city picked before,
         // and over a guess made from the connection, however close either happens to be today.
-        if (p && !cancelled && (!onTheSpot || distanceKm(p, here) > MOVED_KM) && (await savePlace(p))) router.refresh();
+        if (gotPlace(p) && !cancelled && (!onTheSpot || distanceKm(p, here) > MOVED_KM) && (await savePlace(p))) router.refresh();
         return;
       }
       if (source === "cookie") return;
@@ -52,20 +52,20 @@ export function LocationButton({ label, source, here }: { label: string; source:
   };
 
   /** Asks the device for its position (this is what triggers the browser's permission prompt). */
-  const locate = () => {
-    if (!("geolocation" in navigator)) return setError("הדפדפן הזה לא תומך באיתור מיקום");
+  const locate = async () => {
     setBusy(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setBusy(false);
-        choose({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: PRECISE });
-      },
-      (err) => {
-        setBusy(false);
-        setError(err.code === err.PERMISSION_DENIED ? "לא ניתנה הרשאת מיקום. אפשר לאשר אותה בהגדרות הדפדפן, או פשוט לבחור עיר מהרשימה." : "לא הצלחנו לאתר את המיקום. אפשר לבחור עיר מהרשימה.");
-      },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
+    // The wait here covers the permission dialog too, which is why it is generous: the clock
+    // starts when we ask, long before anybody has read the question.
+    const p = await currentPosition();
+    setBusy(false);
+    if (gotPlace(p)) return choose(p);
+    setError(
+      p === "denied"
+        ? "לא ניתנה הרשאת מיקום. אפשר לאשר אותה בהגדרות הדפדפן, או פשוט לבחור עיר מהרשימה."
+        : p === "timeout"
+          ? "הטלפון לא הספיק לאתר את המיקום. אפשר לנסות שוב, או לבחור עיר מהרשימה."
+          : "לא הצלחנו לאתר את המיקום. אפשר לבחור עיר מהרשימה.",
     );
   };
 
