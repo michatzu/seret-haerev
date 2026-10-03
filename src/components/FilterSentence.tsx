@@ -64,7 +64,10 @@ export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Qu
     ...(showGenres ? [{ key: "genres" as Key, label: genresLabel(q.genres), changed: q.genres.length > 0 }] : []),
   ];
 
-  const fromOptions: FromKey[] = q.day === "today" ? ["now", "noon", "evening", "night", "all"] : ["noon", "evening", "night", "all"];
+  // Today, "מעכשיו" and "בכל שעה" are the same list: a screening that has already started is
+  // filtered out either way, because its ticket page is closed. So today only one of them is
+  // offered, and it is the one that says what it does.
+  const fromOptions: FromKey[] = q.day === "today" ? ["now", "noon", "evening", "night"] : ["noon", "evening", "night", "all"];
   const availableGenres = GENRES.filter((g) => genres.includes(g.key));
 
   const line = (words: Word[]) => (

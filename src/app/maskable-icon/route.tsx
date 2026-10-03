@@ -14,11 +14,10 @@ export async function GET() {
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#12151b" }}>
         <svg width="512" height="512" viewBox="0 0 64 64">
           <rect width="64" height="64" fill="#12151b" />
-          <rect x="16" y="21" width="32" height="20" rx="2.4" fill="#ffd36e" />
+          <rect x="16.6" y="19.8" width="30.7" height="19.8" rx="1.9" fill="#ffd36e" />
           <g fill="#12151b">
-            <path d="M19.5 44a5.2 5.2 0 0 1 10.4 0Z" />
-            <path d="M33.8 44a5.2 5.2 0 0 1 10.4 0Z" />
-            <rect x="16" y="41" width="32" height="4" />
+            <path d="M20.5 43.5a4.86 8 0 0 1 9.73 0Z" />
+            <path d="M33.3 43.5a4.86 8 0 0 1 9.73 0Z" />
           </g>
         </svg>
       </div>

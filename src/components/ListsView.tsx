@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Close } from "./Icons";
 import { Poster } from "./Poster";
 import { SyncPanel } from "./SyncPanel";
+import { SiteTitle } from "./SiteTitle";
 import { clearList, entriesWith, idsWith, rememberTitles, setStatus, STATUS_LABEL, STATUSES, useFilmLists, type FilmStatus } from "@/lib/filmLists";
 import { languageName } from "@/lib/format";
 
@@ -45,11 +46,11 @@ export function ListsView() {
     <>
       <header className="border-b border-line bg-header px-4 pb-0 pt-[max(18px,env(safe-area-inset-top))]">
         <div className="mx-auto max-w-[520px]">
-          <div className="flex items-center">
-            <h1 className="font-serif text-[26px] font-bold leading-none text-ink">הרשימות שלי</h1>
-
+          <div className="flex min-h-[44px] items-center justify-between gap-2">
+            <SiteTitle />
+            <h1 className="text-[15px] font-medium text-muted">הרשימות שלי</h1>
           </div>
-          <div className="flex gap-1 pt-1" role="tablist">
+          <div className="flex justify-center gap-1 pt-1" role="tablist">
             {STATUSES.map((s) => {
               const n = idsWith(store, s).length;
               const on = tab === s;

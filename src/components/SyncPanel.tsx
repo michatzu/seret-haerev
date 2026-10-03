@@ -92,31 +92,27 @@ export function SyncPanel() {
   );
 
   return (
-    <section className="mt-4 flex flex-col gap-2 rounded-xl border border-line bg-card px-4 py-3.5 text-[13px] leading-[1.6] text-muted">
+    <section className="mt-4 flex flex-col gap-2 rounded-xl border border-line bg-card px-4 py-3.5 text-center text-[13px] leading-[1.6] text-muted">
       {code ? (
         <>
-          <div className="font-medium text-ink">הרשימות שמורות תחת הקוד הזה:</div>
-          <div className="select-all rounded-lg bg-ph px-3 py-2.5 text-center text-[22px] font-semibold tracking-[0.3em] text-ink">{code}</div>
-          <div>מכאן זה קורה לבד — כל סרט שמסמנים נשמר גם אצלנו.</div>
-          <div>כדאי לזכור את הקוד. בטלפון אחר, או אחרי שנמחקו נתוני האתר, נכנסים ל״הרשימות שלי״, מקלידים אותו ולוחצים ״שחזור״.</div>
-          {state === "error" && <div className="text-ink">לא הצלחנו לשמור כרגע. הרשימות בטוחות כאן בדפדפן, וננסה שוב בשינוי הבא.</div>}
+          <div>הרשימות שמורות תחת הקוד הזה, ומתעדכנות לבד:</div>
+          <div className="select-all rounded-lg bg-ph px-3 py-2.5 text-[22px] font-semibold tracking-[0.3em] text-ink">{code}</div>
+          {state === "error" && <div className="text-ink">לא הצלחנו לשמור כרגע. ננסה שוב בשינוי הבא.</div>}
         </>
       ) : (
         <>
-          <div className="font-medium text-ink">לא לאבד את הרשימות</div>
-          <div>הן נשמרות רק בדפדפן הזה: ניקוי נתוני האתר מוחק אותן, ובטלפון אחר הן לא קיימות. אפשר לבחור קוד בן ארבע ספרות שישמור אותן גם אצלנו — בלי שם, בלי סיסמה ובלי מייל.</div>
-          <div className="pt-1">{field}</div>
-          {state === "taken" && <div className="text-ink">הקוד הזה כבר תפוס. אפשר לבחור ארבע ספרות אחרות — או, אם הוא שלך מטלפון אחר, ללחוץ ״שחזור״.</div>}
+          <div>הרשימות נשמרות רק בדפדפן הזה. קוד בן ארבע ספרות ישמור אותן גם אצלנו, בלי שם ובלי סיסמה.</div>
+          <div className="pt-0.5">{field}</div>
+          {state === "taken" && <div className="text-ink">הקוד הזה כבר תפוס. אפשר לבחור אחר, או ללחוץ ״שחזור״ אם הוא שלך.</div>}
           {state === "not-found" && <div className="text-ink">אין רשימות שמורות תחת הקוד הזה.</div>}
           <div className="flex gap-2 pt-0.5">
             <button type="button" onClick={save} disabled={!complete || state === "working"} className="h-10 flex-1 rounded-lg border border-accent font-medium text-accent disabled:opacity-40">
               {state === "working" ? "רגע…" : "שמירה"}
             </button>
-            <button type="button" onClick={restore} disabled={!complete || state === "working"} className="h-10 flex-1 rounded-lg border border-line font-medium disabled:opacity-40">
+            <button type="button" onClick={restore} disabled={!complete || state === "working"} className="h-10 flex-1 rounded-lg border border-line font-medium text-ink disabled:opacity-40">
               שחזור
             </button>
           </div>
-          <div>״שמירה״ בפעם הראשונה, כדי לשמור את מה שיש כאן. ״שחזור״ בטלפון אחר, או אחרי שמשהו נמחק.</div>
         </>
       )}
     </section>

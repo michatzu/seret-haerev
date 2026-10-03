@@ -9,8 +9,11 @@ import { currentPosition, locationAllowed, remembered, savePlace } from "@/lib/p
 
 /** Far enough from where the list thinks you are to be worth redrawing it. */
 const MOVED_KM = 1.5;
+/** What the place is called once it comes from the device rather than from a list of cities. */
+const PRECISE = "המיקום שלי";
 
 export function LocationButton({ label, source, here }: { label: string; source: "cookie" | "ip" | "default"; here: { lat: number; lng: number } }) {
+  const onTheSpot = source === "cookie" && label === PRECISE;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,7 +34,9 @@ export function LocationButton({ label, source, here }: { label: string; source:
     (async () => {
       if (await locationAllowed()) {
         const p = await currentPosition();
-        if (p && !cancelled && distanceKm(p, here) > MOVED_KM && (await savePlace(p))) router.refresh();
+        // Somebody who has allowed this once means it: the device wins over a city picked before,
+        // and over a guess made from the connection, however close either happens to be today.
+        if (p && !cancelled && (!onTheSpot || distanceKm(p, here) > MOVED_KM) && (await savePlace(p))) router.refresh();
         return;
       }
       if (source === "cookie") return;
@@ -39,7 +44,7 @@ export function LocationButton({ label, source, here }: { label: string; source:
       if (kept && !cancelled && (await savePlace(kept))) router.refresh();
     })();
     return () => { cancelled = true; };
-  }, [here, source, router]);
+  }, [here, source, onTheSpot, router]);
 
   const choose = (p: Place) => {
     setOpen(false);
@@ -54,7 +59,7 @@ export function LocationButton({ label, source, here }: { label: string; source:
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setBusy(false);
-        choose({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "המיקום שלי" });
+        choose({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: PRECISE });
       },
       (err) => {
         setBusy(false);
@@ -64,7 +69,7 @@ export function LocationButton({ label, source, here }: { label: string; source:
     );
   };
 
-  const precise = source === "cookie" && label === "המיקום שלי";
+  const precise = onTheSpot;
 
   return (
     <>

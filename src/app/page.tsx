@@ -54,8 +54,7 @@ export default async function Home(props: PageProps<"/">) {
         <p className="flex flex-wrap justify-center gap-x-2 pt-4 text-center text-[12px] text-muted">
           <Freshness generatedAt={data.snapshot.generatedAt} now={now} />
           <span>·</span>
-          <span>·</span>
-          <Link href="/privacy" className="underline decoration-dotted">פרטיות</Link>
+          <Link href="/privacy" className="underline decoration-dotted">מדיניות הפרטיות</Link>
         </p>
       </main>
     </>

@@ -12,9 +12,8 @@ export function Mark({ size = 26, bg = "#12151b", hairline = true }: { size?: nu
       {hairline && <rect x="0.7" y="0.7" width="62.6" height="62.6" rx="12.3" fill="none" stroke="#ffffff" strokeOpacity="0.22" strokeWidth="1.2" />}
       <rect x="8" y="13" width="48" height="31" rx="3" fill="#ffd36e" />
       <g fill={bg}>
-        <path d="M14 48a7.6 7.6 0 0 1 15.2 0Z" />
-        <path d="M34 48a7.6 7.6 0 0 1 15.2 0Z" />
-        <rect x="8" y="44" width="48" height="6" />
+        <path d="M14 50a7.6 12.5 0 0 1 15.2 0Z" />
+        <path d="M34 50a7.6 12.5 0 0 1 15.2 0Z" />
       </g>
     </svg>
   );
