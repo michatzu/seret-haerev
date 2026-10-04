@@ -5,6 +5,8 @@ import { TabBar } from "@/components/TabBar";
 import { Analytics } from "@vercel/analytics/next";
 import { Tracking } from "@/components/Tracking";
 import { InstallCapture } from "@/components/InstallCapture";
+import { FirstListHint } from "@/components/FirstListHint";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
 import "./globals.css";
 
@@ -71,6 +73,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <TabBar />
         <UndoBar />
+        <FirstListHint />
+        <PullToRefresh />
         <Tracking />
         <InstallCapture />
         <Analytics />

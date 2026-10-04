@@ -102,7 +102,6 @@ export function SyncPanel() {
         <>
           <div>הרשימות שמורות אצלנו תחת הקוד:</div>
           <div className="select-all rounded-lg bg-ph px-3 py-2.5 text-[22px] font-semibold tracking-[0.3em] text-ink">{code}</div>
-          <div>כל סרט שמסמנים מכאן נשמר תחתיו מעצמו, בלי ללחוץ על כלום. מי שמקליד אותו בטלפון אחר רואה שם את אותן רשימות.</div>
           {state === "error" && <div className="text-ink">לא הצלחנו לשמור כרגע. ננסה שוב בשינוי הבא.</div>}
           <button type="button" onClick={forget} className="h-9 self-center px-4 font-medium text-muted underline decoration-dotted">
             החלפת קוד
@@ -110,16 +109,16 @@ export function SyncPanel() {
         </>
       ) : (
         <>
-          <div>אפשר להזין קוד כדי לשמור את הרשימות לפעם הבאה, או לשחזר אחרות.</div>
+          <div>אפשר להזין קוד כדי לשמור את הרשימות לפעם הבאה.</div>
           <div className="pt-0.5">{field}</div>
-          {state === "taken" && <div className="text-ink">הקוד הזה כבר תפוס. אפשר לבחור אחר, או ללחוץ ״שחזור״ אם הוא שלך.</div>}
+          {state === "taken" && <div className="text-ink">הקוד הזה כבר תפוס. אפשר לבחור אחר, או ללחוץ ״שחזור רשימה״ אם הוא שלך.</div>}
           {state === "not-found" && <div className="text-ink">אין רשימות שמורות תחת הקוד הזה.</div>}
           <div className="flex gap-2 pt-0.5">
             <button type="button" onClick={save} disabled={!complete || state === "working"} className="h-10 flex-1 rounded-lg border border-accent font-medium text-accent disabled:opacity-40">
               {state === "working" ? "רגע…" : "שמירה"}
             </button>
             <button type="button" onClick={restore} disabled={!complete || state === "working"} className="h-10 flex-1 rounded-lg border border-line font-medium text-ink disabled:opacity-40">
-              שחזור
+              שחזור רשימה
             </button>
           </div>
         </>

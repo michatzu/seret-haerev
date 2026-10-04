@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Close, FilmStack } from "./Icons";
+import { Close, Magnifier } from "./Icons";
 import { queryToSearch, type Query } from "@/lib/query";
 import { track } from "@/lib/track";
 
@@ -40,10 +40,10 @@ export function SearchBox({ q }: { q: Query }) {
 
   return (
     <div className="relative flex items-center">
-      {/* The symbol sits at the head of the field rather than beside a centred word: a box with
+      {/* The glass sits at the head of the field rather than beside a centred word: a box with
           something written in the middle of it reads as a button, and this is a place to type.
           "סרצ׳" is "search" said aloud, and it reads as "סרט". */}
-      <FilmStack width={17} height={17} aria-hidden className="pointer-events-none absolute start-3.5 text-muted" />
+      <Magnifier width={17} height={17} aria-hidden className="pointer-events-none absolute start-3.5 text-muted" />
       {!text && (
         <span aria-hidden className="pointer-events-none absolute start-9 text-[15px] text-muted">סרצ׳..</span>
       )}

@@ -68,7 +68,7 @@ export const Search = (p: SVGProps<SVGSVGElement>) => (
 
 /**
  * SF Symbols cannot be shipped to a browser — Apple licenses the set for apps on its own
- * platforms, not as a web font — so these two are drawn to match the symbols they stand in for.
+ * platforms, not as a web font — so this one is drawn to match the symbol it stands in for.
  */
 
 /** movieclapper: the board, with its hinged striped arm. */
@@ -80,14 +80,6 @@ export const Clapper = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-/** film.stack: one strip in front of another, both perforated. */
-export const FilmStack = (p: SVGProps<SVGSVGElement>) => (
-  <svg {...base(p)}>
-    <path d="M7.5 4.5h11a2 2 0 0 1 2 2v7" />
-    <rect x="2.8" y="7.5" width="15.4" height="12" rx="2" />
-    <path d="M6.6 7.5v12M14.4 7.5v12" />
-  </svg>
-);
 
 /** The iOS share control: a box with an arrow leaving the top of it. */
 export const ShareIos = (p: SVGProps<SVGSVGElement>) => (
@@ -95,5 +87,14 @@ export const ShareIos = (p: SVGProps<SVGSVGElement>) => (
     <path d="M12 3.5v11" />
     <path d="M8.5 7 12 3.5 15.5 7" />
     <path d="M7.5 11H5.5v9.5h13V11h-2" />
+  </svg>
+);
+
+/** A magnifier of the detective kind: a wide lens, a short thick handle, held at an angle. */
+export const Magnifier = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <circle cx="10.5" cy="10.5" r="4.6" strokeOpacity="0.35" />
+    <path d="M15.4 15.4 20 20" strokeWidth="3" />
   </svg>
 );
