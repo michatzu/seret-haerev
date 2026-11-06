@@ -26,7 +26,7 @@ export default async function Home(props: PageProps<"/">) {
 
   return (
     <>
-      <Header q={shown} place={place} venues={venueOptions(data.venues.values(), place)} genres={genreOptions(data.films.values())} />
+      <Header q={shown} place={place} venues={venueOptions([...data.venues.values()].filter((v) => data.screening.has(v.id)), place)} genres={genreOptions(data.films.values())} />
       <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col gap-3 px-4 pb-10 pt-3.5">
         {place.source !== "cookie" && <LocationHint label={place.label} />}
         <SearchBox q={shown} />

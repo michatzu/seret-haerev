@@ -35,12 +35,15 @@ async function main() {
   const selected = only.length ? tasks.filter((t) => only.includes(t.chain) || (t.label && only.includes(t.label))) : tasks;
   const results: AdapterResult[] = [];
   const reports: SourceReport[] = [];
+  const venueSource: Record<string, string> = {};
   await Promise.all(
     selected.map(async (t) => {
       const t0 = Date.now();
       try {
         const r = await t.run();
         results.push(r);
+        for (const v of r.venues) venueSource[v.id] = t.label ?? t.chain;
+        for (const s of r.screenings) venueSource[s.venueId] = t.label ?? t.chain;
         reports.push({ chain: t.label ?? t.chain, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 });
       } catch (e) {
         reports.push({ chain: t.label ?? t.chain, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) });
@@ -48,12 +51,19 @@ async function main() {
     }),
   );
   const snapshot = buildSnapshot(results, reports.sort((a, b) => a.chain.localeCompare(b.chain)));
+  snapshot.venueSource = venueSource;
 
   // a source that failed should not take its cinemas off the site: keep what it said last time
   const previous = await readFile(path.join(process.cwd(), "data", "snapshot.json"), "utf8")
     .then((t) => JSON.parse(t) as Snapshot)
     .catch(() => null);
-  const carried = carryForward(snapshot, previous);
+  // only a source that was not read this run — it failed, or a partial run left it out — is carried
+  const read = new Set(reports.filter((r) => r.ok).map((r) => r.chain));
+  const unreadTasks = tasks.filter((t) => !read.has(t.label ?? t.chain));
+  const carried = carryForward(snapshot, previous, {
+    labels: new Set(unreadTasks.map((t) => t.label ?? t.chain)),
+    chains: new Set(unreadTasks.map((t) => t.chain)),
+  });
   if (carried.screenings) console.log(`carried: ${carried.screenings} screenings at ${carried.venues} venues whose source failed, from ${carried.from}`);
   const t1 = Date.now();
   const enriched = await enrichFilms(snapshot.films);

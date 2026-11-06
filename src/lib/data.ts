@@ -3,7 +3,11 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Film, Screening, Snapshot, Venue } from "./types";
 
-interface Loaded { key: string; snapshot: Snapshot; films: Map<string, Film>; venues: Map<string, Venue>; byFilm: Map<string, Screening[]> }
+interface Loaded {
+  key: string; snapshot: Snapshot; films: Map<string, Film>; venues: Map<string, Venue>; byFilm: Map<string, Screening[]>;
+  /** Venues with at least one film on their schedule, as opposed to only shows, talks and stage events. */
+  screening: Set<string>;
+}
 let cache: Loaded | null = null;
 
 const FILE = path.join(process.cwd(), "data", "snapshot.json");
@@ -17,12 +21,14 @@ function index(snapshot: Snapshot, key: string): Loaded {
   const films = new Map(snapshot.films.map((f) => [f.id, f]));
   const venues = new Map(snapshot.venues.map((v) => [v.id, v]));
   const byFilm = new Map<string, Screening[]>();
+  const screening = new Set<string>();
   for (const s of snapshot.screenings) {
     const arr = byFilm.get(s.filmId);
     if (arr) arr.push(s);
     else byFilm.set(s.filmId, [s]);
+    if (films.get(s.filmId)?.isEvent === false) screening.add(s.venueId);
   }
-  return { key, snapshot, films, venues, byFilm };
+  return { key, snapshot, films, venues, byFilm, screening };
 }
 
 /** Loads the snapshot: remote URL with 10-minute revalidation, else data/snapshot.json (re-read when it changes). */

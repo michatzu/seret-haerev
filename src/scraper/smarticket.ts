@@ -6,9 +6,10 @@
  * A tenant that does not exist still answers 200, with "לא נמצאה מערכת" in the page title, so a
  * missing venue shows up as an empty list rather than an error.
  */
-import type { AdapterResult, RawFilm, RawScreening, Venue } from "@/lib/types";
+import type { AdapterResult, Attr, RawFilm, RawScreening, Venue } from "@/lib/types";
 import { getJson } from "./http";
 import { zonedToIso } from "@/lib/tz";
+import { shortHash } from "@/lib/text";
 import { looksLikeEvent } from "./modulus";
 
 const CHAIN = "other" as const;
@@ -17,8 +18,14 @@ interface SmTenant {
   /** subdomain, or a full host for the few venues on their own domain */
   tenant: string;
   venue: Omit<Venue, "chain">;
-  /** which categories are films; undefined means the whole tenant is a cinema */
+  /**
+   * Which shows are films, for a hall that also sells theatre and concerts: the tenant's own
+   * category or tag names (each hall names its film series its own way, so these are copied from
+   * its /api/shows, not guessed), or, for a hall that leaves every show uncategorised, a title its
+   * film series always carries. Neither set means the whole tenant is a cinema.
+   */
   categories?: string[];
+  titles?: RegExp;
 }
 
 const TENANTS: SmTenant[] = [
@@ -33,12 +40,14 @@ const TENANTS: SmTenant[] = [
   {
     tenant: "hms",
     venue: { id: "sm-tikotin", name: "קולנוע טיקוטין", city: "חיפה", address: "שדרות הנשיא 89", lat: 32.809349, lng: 34.985385, kind: "boutique", url: "https://hms.smarticket.co.il" },
-    categories: ["סרטים", "קולנוע"],
+    // the pre-premiere club names each month's film on the date itself
+    categories: ["סרטים", "טרום בכורה"],
   },
   {
     tenant: "maalot",
     venue: { id: "sm-maalot", name: "סינמה היכל התרבות מעלות", city: "מעלות תרשיחא", address: "קהילת יהדות צרפת 1", lat: 33.01679, lng: 35.28613, kind: "boutique", url: "https://maalot.smarticket.co.il" },
-    categories: ["קולנוע"],
+    // Docaviv's touring programme, a weekend of documentaries in the same hall
+    categories: ["קולנוע", "דוקאביב גליל"],
   },
   {
     tenant: "savyon",
@@ -48,32 +57,36 @@ const TENANTS: SmTenant[] = [
   {
     tenant: "rehovot",
     venue: { id: "sm-rehovot", name: "בית העם רחובות", city: "רחובות", address: "יעקב 2", lat: 31.89416, lng: 34.81089, kind: "boutique", url: "https://rehovot.smarticket.co.il" },
-    categories: ["קולנוע"],
+    // "קולנוע תרבויות" is a lecture evening named for a country, its film only in the small print
+    categories: ["טרום בכורה - קולנוע", "סרט בונוס"],
   },
   {
     tenant: "ksaba",
     venue: { id: "sm-ksaba", name: "היכל התרבות כפר סבא", city: "כפר סבא", address: "התרבות 6", lat: 32.17539, lng: 34.90796, kind: "boutique", url: "https://ksaba.smarticket.co.il" },
-    categories: ["קולנוע"],
+    titles: /^\s*(שישי מהסרטים|טרום בכורה בקולנוע)/u,
   },
   {
     tenant: "raanana",
     venue: { id: "sm-raanana", name: "המשכן לאמנויות הבמה רעננה", city: "רעננה", address: "יד לבנים 1", lat: 32.18425, lng: 34.87196, kind: "boutique", url: "https://raanana.smarticket.co.il" },
-    categories: ["קולנוע"],
+    // the Yad Labanim hall files its pre-premiere series under a tag rather than the category
+    categories: ["קולנוע", "קולנוע יד לבנים"],
   },
   {
     tenant: "ramathasharon",
     venue: { id: "sm-ramathasharon", name: "בית יד לבנים רמת השרון", city: "רמת השרון", address: "אוסישקין 41", lat: 32.14607, lng: 34.83877, kind: "boutique", url: "https://ramathasharon.smarticket.co.il" },
-    categories: ["קולנוע"],
+    categories: ["סרט קולנוע"],
   },
   {
     tenant: "hhn",
     venue: { id: "sm-nahariya", name: "היכל התרבות נהריה", city: "נהריה", address: "הגעתון 19", lat: 33.00787, lng: 35.09523, kind: "boutique", url: "https://hhn.smarticket.co.il" },
-    categories: ["קולנוע"],
+    categories: ["קולנוע שישי נשי"],
   },
 ];
 
 interface SmEvent {
   id: number;
+  /** a series sold as one show can name each date's film here */
+  title?: string | null;
   show_date?: string;
   show_time?: string;
   duration?: number;
@@ -86,6 +99,8 @@ interface SmShow {
   id: number;
   title?: string;
   category?: string | null;
+  /** comma-separated */
+  tags?: string | null;
   image?: string | null;
   brief?: string | null;
   permalink?: string;
@@ -109,11 +124,8 @@ async function scrapeTenant(t: SmTenant): Promise<AdapterResult> {
     const title = (show.title ?? "").replace(/\s+/g, " ").trim();
     if (!title) continue;
     // a mixed venue sells theatre and concerts through the same system
-    if (t.categories && !t.categories.includes(show.category ?? "")) continue;
-    const clean = cleanTitle(title);
-    if (!clean) continue;
+    if (!isFilm(t, show, title)) continue;
 
-    const filmId = `sm-${t.tenant}-${show.id}`;
     for (const e of show.events ?? []) {
       if (e.visibility === false) continue;
       const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e.show_date ?? "");
@@ -123,6 +135,14 @@ async function scrapeTenant(t: SmTenant): Promise<AdapterResult> {
       const at = Date.parse(startsAt);
       if (!Number.isFinite(at) || at < now - 3600_000 || at > horizon) continue;
 
+      // "מועדון טרום בכורה" is one show all season; the film is named on each date, when it is
+      const own = (e.title ?? "").replace(/\s+/g, " ").trim();
+      const named = own && cleanTitle(own) && cleanTitle(own) !== cleanTitle(title) ? own : title;
+      const clean = cleanTitle(named);
+      if (!clean) continue;
+      const filmId = named === title ? `sm-${t.tenant}-${show.id}` : `sm-${t.tenant}-${show.id}-${shortHash(clean)}`;
+      const dubbed = /מדובב/u.test(named);
+
       if (!films.has(filmId)) {
         films.set(filmId, {
           chain: CHAIN,
@@ -131,16 +151,20 @@ async function scrapeTenant(t: SmTenant): Promise<AdapterResult> {
           runtime: e.duration && e.duration > 30 ? e.duration : undefined,
           posterUrl: show.image ? `https://${host}/uploads/${show.image}` : undefined,
           synopsis: show.brief ? show.brief.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 900) : undefined,
-          isEvent: looksLikeEvent(title),
+          // judged on the name left once the hall's own labels are gone: "X - מפגש עם הבמאית" is X
+          isEvent: looksLikeEvent(clean) || unnamed(clean),
+          isKids: dubbed || undefined,
         });
       }
+      const attrs: Attr[] = dubbed ? ["dubbed"] : [];
       screenings.push({
         chain: CHAIN,
         sourceId: `sm-${t.tenant}-${e.id}`,
         sourceFilmId: filmId,
         venueId: venue.id,
         startsAt,
-        attrs: [],
+        attrs,
+        dubbedLang: dubbed ? "he" : undefined,
         bookingUrl: `https://${host}${e.permalink ?? `/show/${show.id}`}`,
         soldOut: e.tickets_available === false || undefined,
       });
@@ -149,14 +173,38 @@ async function scrapeTenant(t: SmTenant): Promise<AdapterResult> {
   return { chain: CHAIN, venues: screenings.length ? [venue] : [], films: [...films.values()], screenings };
 }
 
-/** These listings append their own labels to a title: "X | טרום בכורה", "X – מועדון קולנוע". */
+function isFilm(t: SmTenant, show: SmShow, title: string): boolean {
+  if (!t.categories && !t.titles) return true;
+  if (t.titles?.test(title)) return true;
+  const names = [show.category ?? "", ...(show.tags ?? "").split(",")].map((x) => x.trim()).filter(Boolean);
+  return !!t.categories?.some((c) => names.includes(c));
+}
+
+/**
+ * A date sold before its film is announced: "טרום בכורה - סרט מס' 2 - עונה 26/27", "טרום בכורה
+ * בקולנוע - לראות את הסרטים הטובים לפני כולם". A real screening, but a card by that name tells a
+ * reader nothing to choose by, so it stays off the list the way a lecture night does.
+ */
+function unnamed(title: string): boolean {
+  return !title
+    .replace(/מועדון|טרום בכורה|הקרנה מיוחדת|בקולנוע|סרט\s+מס['׳]?\s*\d+|עונה\s*\d{2}\/\d{2}|\b\d{2}-\d{2}\b|לראות את הסרטים הטובים לפני כולם/gu, " ")
+    .replace(/[\s|–—\-:'"׳״.]+/gu, "");
+}
+
+/** These listings wrap a film's name in their own labels: "X | טרום בכורה", "שישי מהסרטים - X". */
 function cleanTitle(t: string): string {
   return t
-    .replace(/\s*[|–—-]\s*(טרום בכורה|בכורה|מועדון קולנוע|קולנוע שישי נשי|הקרנה חגיגית|במסגרת.*|מפגש עם.*|בהשתתפות.*|שיח.*)$/u, "")
+    .replace(/\s*\((?:\d{1,2}:\d{2}|[^()\u0590-\u05ff]*film[^()\u0590-\u05ff]*)\)\s*/giu, " ")
+    .replace(/\s*[|–—\-/]\s*(טרום בכורה|בכורה|מועדון קולנוע|קולנוע שישי נשי|הקרנה חגיגית|דוקאביב|סרט טרום בכורה.*|סרט וארוחת בוקר|מועדון הסרט.*|במסגרת.*|מפגש עם.*|בהשתתפות.*|שיח.*)$/u, "")
+    // "טרום בכורה : X" names its film; "טרום בכורה - סרט מס' 2" is a date whose film is still a secret
+    .replace(/^\s*טרום בכורה\s*[:|]\s*/u, "")
+    .replace(/^\s*הקרנה מיוחדת\s+(?=\S)/u, "")
     .replace(/^\s*(דוקו ישראלי|אפוס|סינמה ישראלית|מועדון קולנוע|קולנוע ישראלי)\s*:\s*/u, "")
+    .replace(/^\s*(שישי מהסרטים|חדש במתחם\s*-\s*סרט קולנוע איכותי)\s*[:–—-]\s*/u, "")
     .replace(/^\s*(סרט|הסרט|קולנוע)\s*:\s*/u, "")
     .replace(/^[״"'׳'']+|[״"'׳'']+$/gu, "")
     .replace(/\s*\((מדובב|מדובבת)\)\s*/g, " ")
+    .replace(/\s*-?\s*מדובב(ת)?\s*$/u, "")
     .replace(/\s+/g, " ")
     .replace(/^[\s|–—-]+|[\s|–—-]+$/g, "")
     .trim();

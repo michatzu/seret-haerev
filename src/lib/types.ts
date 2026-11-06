@@ -118,6 +118,17 @@ export interface Snapshot {
    * year and a half.
    */
   retired?: Record<string, { title: string; year?: number; seen?: string; poster?: string }>;
+  /**
+   * Venues whose source failed this run and whose schedule was carried from an earlier one, by id,
+   * with the time it was last actually read. Absent for every venue read fresh.
+   */
+  carried?: Record<string, string>;
+  /**
+   * Which source each venue came from, by the adapter's label ("popup", "planet"). A venue is only
+   * ever carried when its own source failed: one its source simply stopped listing — a duplicate
+   * merged away, a concert filtered out — is gone, not missing.
+   */
+  venueSource?: Record<string, string>;
 }
 
 /* ---- raw shapes produced by adapters, before films are unified across chains ---- */

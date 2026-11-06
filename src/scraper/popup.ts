@@ -38,6 +38,19 @@ const POPUP_VENUES: PopupVenue[] = [
   { id: "pop-matmon", chain: CHAIN, name: "מטמון", city: "תל אביב", address: "הרצל 70", lat: 32.05733, lng: 34.76986, kind: "boutique", match: /\bmatmon\b|מטמון/i },
   { id: "pop-hameretz2", chain: CHAIN, name: "המרץ 2", city: "תל אביב", address: "המרץ 2", lat: 32.05585, lng: 34.77739, kind: "boutique", match: /hameretz ?2|המרץ ?2/i },
   { id: "pop-purple", chain: CHAIN, name: "Purple House", city: "תל אביב", address: "שדרות ירושלים 32, יפו", lat: 32.05306, lng: 34.75664, kind: "boutique", match: /purple house/i },
+  // Municipal halls that screen films. Each point is the municipality's own grid reference for the
+  // hall, converted and checked against OpenStreetMap; Nominatim alone put Mandel in Ramat Gan and
+  // Beit Miriam in Herzliya. One entry per place however the listings spell it.
+  { id: "pop-mandel", chain: CHAIN, name: "מרכז תרבות מנדל", city: "תל אביב", address: "התקומה 1, יפו", lat: 32.05126, lng: 34.75994, kind: "boutique", match: /מרכז\s+(?:תרבות\s+)?מנדל|mandel (?:cultural )?cent/i },
+  { id: "pop-rozin", chain: CHAIN, name: "מרכז רוזין", city: "תל אביב", address: "יחיאל דרזנר 2, רמת אביב ג׳", lat: 32.12701, lng: 34.80501, kind: "boutique", match: /רוזין|\brozin\b/i },
+  { id: "pop-beittami", chain: CHAIN, name: "בית תמי", city: "תל אביב", address: "מרכז בעלי מלאכה 16", lat: 32.06985, lng: 34.77279, kind: "boutique", match: /בית תמי|beit tami/i },
+  { id: "pop-beitmiriam", chain: CHAIN, name: "בית מרים", city: "תל אביב", address: "יהודה מרגוזה 54, יפו", lat: 32.05065, lng: 34.75156, kind: "boutique", match: /בית מרים|beit miriam/i },
+  { id: "pop-barakat", chain: CHAIN, name: "בית ברכאת", city: "תל אביב", address: "עזה 55, יפו", lat: 32.04235, lng: 34.76108, kind: "boutique", match: /בית ברכאת|beit barakat/i },
+  { id: "pop-enav", chain: CHAIN, name: "מרכז ענב", city: "תל אביב", address: "אבן גבירול 71", lat: 32.08232, lng: 34.78105, kind: "boutique", match: /מרכז ענב|enav (?:cultural )?cent/i },
+  { id: "pop-hadash", chain: CHAIN, name: "מרכז ספורט ״חדש״", city: "תל אביב", address: "אהבת ציון 17", lat: 32.08996, lng: 34.79449, kind: "boutique", match: /מרכז ספורט\s*["״]?חדש/ },
+  { id: "pop-cameri", chain: CHAIN, name: "תיאטרון הקאמרי", city: "תל אביב", address: "שדרות שאול המלך 19", lat: 32.07701, lng: 34.78453, kind: "boutique", match: /תי?אטרון הקאמרי|cameri theat/i },
+  { id: "pop-ariela", chain: CHAIN, name: "בית אריאלה", city: "תל אביב", address: "שדרות שאול המלך 25", lat: 32.07668, lng: 34.78628, kind: "boutique", match: /בית אריאלה|beit ariela/i },
+  { id: "pop-hatzuk", chain: CHAIN, name: "מרכז קהילתי הצוק", city: "תל אביב", address: "גלילות", lat: 32.14196, lng: 34.79973, kind: "boutique", match: /מרכז קהילתי הצוק/ },
 ];
 
 const findVenue = (name: string): PopupVenue | undefined => POPUP_VENUES.find((v) => v.match.test(name));
@@ -74,7 +87,12 @@ async function resolveVenue(rawName: string, address = "", city = "\u05ea\u05dc 
   if (resolved.has(key)) return resolved.get(key)!;
 
   // the name first, then the address as a fallback query; either way the name is what we display
-  const hit = (await geocode(name, city)) ?? (address && !looksLikeAddress(name) ? null : address ? await geocode(address, city) : null);
+  const found = (await geocode(name, city)) ?? (address && !looksLikeAddress(name) ? null : address ? await geocode(address, city) : null);
+  // Asked for a place in Tel Aviv, Nominatim answers with the nearest spelling anywhere: "מרכז מנדל"
+  // came back as a hall in Ramat Gan. A hit in another city is a wrong guess, not a venue. Every
+  // label in the area ends "נפת תל אביב, מחוז תל אביב", so the city is read with those removed.
+  const inCity = (label: string) => /תל[\s־-]?אביב|יפו/.test(label.replace(/(?:נפת|מחוז)\s+תל\s+אביב/g, ""));
+  const hit = found && (city !== "תל אביב" || !found.label || inCity(found.label)) ? found : null;
   const venue = hit
     ? { id: `pop-${shortHash(`${name}|${city}`.toLowerCase())}`, chain: CHAIN, name, city, address: address || undefined, lat: hit.lat, lng: hit.lng, kind: "boutique" as const }
     : null;
@@ -139,44 +157,77 @@ function cleanSeriesTitle(raw: string): { title: string; original?: string } | n
   return { title: s, original: original && /[A-Za-z]/.test(original) ? original : undefined };
 }
 
+/** Quote characters that wrap a title; a lone geresh inside a word (סנאץ׳) must survive. */
+const QUOTES = "\"'\u05f3\u05f4\u2018\u2019\u201c\u201d";
+
+/** A series name standing where a film's name should be. */
+const SERIES_LABEL = /קולנוע|סרטים|סינמה|מועדון|סדרת|ערב|מוצ|שישי|פסטיבל|הקרנ/;
+/**
+ * A quoted name at the front, then a description: "\"שכחו אותי בבית 1\" סרט לכל המשפחה",
+ * "'סגל חסר' - שועלי כפר עזה". A geresh or gershayim between letters (ג'וליה, ארה״ב) is not a quote.
+ */
+const QUOTED_LEAD = new RegExp(`^[${QUOTES}]((?:[^${QUOTES}]|(?<=[\\u05d0-\\u05ea])[${QUOTES}](?=[\\u05d0-\\u05ea]))+?)[${QUOTES}](?![\\u05d0-\\u05eaA-Za-z])\\s*\\S`, "u");
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * A municipal event title is written for a listings page, not for us:
  * "קולנוע הפסגה - האלמנט החמישי", "הקרנת הסרט פוטו פרג׳ ושיח עם הבמאי",
  * "קולנוע הפסגה: 20 שנה לסרט מכוניות". Peel the series prefix and the editorial tail.
+ * `place` is the venue as the listing names it: a title that ends with it names the venue's series.
  */
-/** Quote characters that wrap a title; a lone geresh inside a word (סנאץ׳) must survive. */
-const QUOTES = "\"'\u05f3\u05f4\u2018\u2019\u201c\u201d";
-
-function cleanEventTitle(raw: string): string | null {
+function cleanEventTitle(raw: string, place = ""): string | null {
   let s = raw.replace(/\s+/g, " ").trim();
   const unquote = (x: string) => { let t = x.trim(); while (t.length > 2 && QUOTES.includes(t[0]) && QUOTES.includes(t[t.length - 1])) t = t.slice(1, -1).trim(); return t; };
   s = unquote(s);
   s = s.replace(/^(?:קולנוע\s+הפסגה|קולנוע\s+בגן|סרטי\s+קיץ)\s*(?:לילדים\s+ולילדות|לילדים)?\s*[-–—:]\s*/, "");
-  s = s.replace(/^הקרנ(?:ת|ה\s+של)\s+(?:הסרט|סרט|הסרטים)\s+/, "");
+  // "הקרנת הסרט X", and "הקרנת סרט ושיחה: X"
+  s = s.replace(/^הקרנ(?:ת|ה\s+של)\s+(?:הסרט|סרט|הסרטים)(?:\s+ו(?:שיחה|שיח|דיון)\s*:)?\s+/, "");
   s = s.replace(/^(?:סרט|הסרט)\s*:\s*/, "");
+  // a hall's film club in front of the film: "מיקרוסינמה ברוזין - X", "סינמה ברכאת מציג: X"
+  s = s.replace(/^(?:מיקרו)?סינמה\s+\S+(?:\s+מציג(?:ה|ים)?)?\s*[-–—:]\s*(?=\S)/u, "");
   // a series label in front of the film: "שישי מהסרטים: דויד", "מוצ״ש קולנועי: ..."
-  s = s.replace(/^([^:]{3,32}):\s*(?=\S)/u, (m, label: string) =>
-    /קולנוע|סרטים|מועדון|סדרת|ערב|מוצ|שישי|פסטיבל|הקרנ/.test(label) ? "" : m);
+  s = s.replace(/^([^:]{3,32}):\s*(?=\S)/u, (m, label: string) => SERIES_LABEL.test(label) ? "" : m);
   // "20 שנה לסרט מכוניות" / "חוגגים 30 שנה לסרט סנאץ"
   s = s.replace(/^[\s:\-\u2013\u2014]+/, ""); // "הקרנת סרט : X" leaves a stray colon
+  const lead = QUOTED_LEAD.exec(s);
+  if (lead) s = lead[1];
   const anniversary = /(?:חוגגים\s+)?\d+\s+שנה\s+ל(?:סרט\s+|הסרט\s+)?(.+)$/.exec(s);
   if (anniversary) s = anniversary[1];
-  s = s.replace(/\s*[-–—]\s*(?:חוגגים|ערב|מפגש|בהשתתפות|הקרנה|שיח|לרגל|במסגרת|מופע)[\sולב].*$/u, "");
+  s = s.replace(/\s*[-–—]\s*(?:חוגגים|ערב|מפגש|בהשתתפות|הקרנה|שיח|לרגל|במסגרת|מופע)(?:[\s,ולב]|$).*$/u, "");
   s = s.replace(/\s+ב(?:מועדון|מסגרת|סדרת)\s+.*$/u, "");
   s = s.replace(/\s+ו?שיח\s+עם\s+הבמאי.*$/, "");
+  s = s.replace(/\s+[-–—]\s+(?:קאמרי\s+)?פנורמה$/, ""); // the Cameri's film mornings: "אני רוקי - קאמרי פנורמה"
   s = unquote(s.replace(/[!\s]*[-–—:]?[!\s]*$/, ""));
+  // "שישי מהסרטים במרכז תרבות מנדל": the season's own record, its nights are listed one by one
+  const atPlace = place.trim().length > 2 ? new RegExp(`\\s+(?:ב|ל)?(?:ספריית\\s+)?${escapeRe(place.trim())}$`) : null;
+  if (atPlace?.test(s) && SERIES_LABEL.test(s.replace(atPlace, ""))) return null;
   if (s.length < 2 || s.length > 90) return null;
   if (/^קולנוע\s+הפסגה/.test(s)) return null; // the umbrella record, not a film
   return s;
 }
 
-/** Is this municipal event about film at all? The interests field lumps theatre in with cinema. */
+/** A cancelled night stays listed with the word in its title: "** בוטל ** ...", "... - מבוטל". */
+const CANCELLED = /בוטל/;
+/** An evening about film rather than a showing of one: a talk, a show, a concert of film music. */
+const NOT_SCREENING = /תאטרון|תיאטרון|הצגה|סדנ|הרצא|מופע|קונצרט|הופעה|פסקול|\blive\b|שעת סיפור/i;
+/** A lecture series reads like a film club until the description names whoever gives it. */
+const LECTURER = /הרצא|מרצה|מנחה/;
+/** Evidence of an actual showing: the word itself, "הסרט: X", or a credits line ("2014 | 120 דקות"). */
+const SHOWING = /הקרנ|(?:^|[\s"'״׳])ה?סרט\s*:|(?:19|20)\d{2}\s*[|,]\s*\d{2,3}\s*דק/;
+/** A running time of a feature somewhere in the text, as opposed to a short shown after a talk. */
+const featureLength = (s: string) => [...s.matchAll(/(\d{2,3})\s*דק(?:ות|['׳])/g)].some((m) => Number(m[1]) >= 60);
+
+/** Is this municipal event a film showing? The interests field lumps theatre and talks in with cinema. */
 function looksLikeCinema(it: TlvItem): boolean {
-  const interests = field(it, "TlvFieldsOfInterests");
   const title = field(it, "Title");
-  const blob = `${title} ${stripTags(field(it, "TlvSummary"))}`;
-  if (/תאטרון|תיאטרון|הצגה|סדנ|הרצאה|מופע/.test(title) && !/קולנוע|הקרנ|סרט/.test(title)) return false;
-  return /קולנוע/.test(interests) && /קולנוע|הקרנ|הסרט|סרטים/.test(blob);
+  if (CANCELLED.test(title) || !/קולנוע/.test(field(it, "TlvFieldsOfInterests"))) return false;
+  const front = `${title} ${stripTags(field(it, "TlvSummary"))}`;
+  const comments = stripTags(field(it, "Comments"));
+  // the title speaks first: a show or a talk is a screening only if it says so itself
+  if (NOT_SCREENING.test(title)) return SHOWING.test(title);
+  // a talk followed by a feature still counts: "11:30 הקרנת הסרט (128 דקות)", but not a short at the end
+  if (NOT_SCREENING.test(front) || LECTURER.test(comments)) return SHOWING.test(front) || (/הקרנ/.test(comments) && featureLength(comments));
+  return /קולנוע|הקרנ|(?:^|\s)ה?סרט(?:ים)?(?:\s|$)|סינמה/.test(front) || SHOWING.test(front);
 }
 
 async function fromMunicipality(days: number): Promise<{ venues: Venue[]; films: RawFilm[]; screenings: RawScreening[] }> {
@@ -194,14 +245,14 @@ async function fromMunicipality(days: number): Promise<{ venues: Venue[]; films:
   const now = Date.now();
   const horizon = now + days * 864e5;
 
-  const add = (v: Venue, startsAt: string, title: string, original: string | undefined, synopsis: string, url: string, outdoor: boolean, sourceId: string) => {
+  const add = (v: Venue, startsAt: string, title: string, original: string | undefined, synopsis: string, url: string, outdoor: boolean, sourceId: string, isEvent = false) => {
     const t = new Date(startsAt).getTime();
     if (!Number.isFinite(t) || t < now - 6 * 3600_000 || t > horizon) return;
     const slot = `${v.id}|${startsAt}`;
     if (taken.has(slot)) return;
     taken.add(slot);
     const filmId = `tlv-${shortHash(title)}`;
-    if (!films.has(filmId)) films.set(filmId, { chain: CHAIN, sourceId: filmId, title, originalTitle: original, synopsis: synopsis || undefined, isEvent: false });
+    if (!films.has(filmId)) films.set(filmId, { chain: CHAIN, sourceId: filmId, title, originalTitle: original, synopsis: synopsis || undefined, isEvent });
     screenings.push({ chain: CHAIN, sourceId, sourceFilmId: filmId, venueId: v.id, startsAt, attrs: outdoor ? ["outdoor"] : [], bookingUrl: url });
   };
 
@@ -221,10 +272,14 @@ async function fromMunicipality(days: number): Promise<{ venues: Venue[]; films:
 
       if (pass === "event") {
         const d = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4}),\s*(\d{1,2}):(\d{2})/.exec(field(it, "TlvStartDate"));
-        const title = cleanEventTitle(field(it, "Title"));
-        if (!d || !title) continue;
+        const cleaned = cleanEventTitle(field(it, "Title"), loc);
+        if (!d || !cleaned) continue;
+        // "פסטיבל קצה 26 | רצועת אחיזה": a block of shorts under the festival's name, listed as a
+        // programme like Secret Tel Aviv's double features, so no catalogue lookup guesses a film
+        const programme = /^פסטיבל\s/.test(cleaned);
+        const title = programme ? cleaned.replace(/\s+[-–—|]\s+/, " | ") : cleaned;
         const year = Number(d[3].length === 2 ? `20${d[3]}` : d[3]);
-        add(v, zonedToIso(year, +d[2], +d[1], +d[4], +d[5]), title, undefined, summary, url, outdoor, `${itemId}-${field(it, "TlvStartDate")}`);
+        add(v, zonedToIso(year, +d[2], +d[1], +d[4], +d[5]), title, undefined, summary, url, outdoor, `${itemId}-${field(it, "TlvStartDate")}`, programme);
       } else {
         for (const m of stripTags(field(it, "Comments")).matchAll(SERIES_LINE)) {
           const parsed = cleanSeriesTitle(m[6]);

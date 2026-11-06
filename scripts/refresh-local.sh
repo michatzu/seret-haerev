@@ -67,7 +67,10 @@ echo "--- $(date -u +%Y-%m-%dT%H:%M:%SZ) refreshing from $(hostname -s)"
 
 # Start from what is published, not from what happens to be in the tree: a source that fails is
 # carried forward from the previous snapshot, and the published one is the fresher of the two.
-git fetch -q origin data:data 2>/dev/null || true
+# The branch is force-pushed as a single commit every time, so the local copy can never be
+# fast-forwarded: without the "+" the fetch is refused, the refusal is swallowed, and the run
+# quietly starts from whatever this machine fetched last — a stale schedule and stale caches.
+git fetch -q origin +data:data 2>/dev/null || true
 for f in snapshot enrich-cache poster-cache geocode-cache summary-cache; do
   git show "data:$f.json" > "data/$f.json" 2>/dev/null || true
 done

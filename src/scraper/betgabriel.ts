@@ -56,15 +56,23 @@ interface BgEvents {
 
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
 
-/** The hall also sells concerts, guided walks and children's theatre; only its cinema page is film. */
+/**
+ * The hall also sells concerts, guided walks and children's theatre; only its cinema page and its
+ * documentary shelf are film. A documentary screened with its director never reaches the cinema
+ * page, so without that shelf it would be filed as a talk.
+ */
+const FILM_LISTS = ["showListType=ShowingNow&categoryId=0", "showListType=ByCategory&categoryId=10"];
+
 async function cinemaMovieIds(): Promise<Set<number>> {
   const ids = new Set<number>();
-  for (let page = 1; page <= 10; page++) {
-    const list = await getJson<{ movies?: { id: number }[]; totalPages?: number }>(
-      `${HOST}/GetShowlistMoviesVue?showListType=ShowingNow&page=${page}&theaterId=0&vodCategoryId=0&categoryId=0`,
-    );
-    for (const m of list.movies ?? []) ids.add(m.id);
-    if (page >= (list.totalPages ?? 1)) break;
+  for (const list of FILM_LISTS) {
+    for (let page = 1; page <= 10; page++) {
+      const res = await getJson<{ movies?: { id: number }[]; totalPages?: number }>(
+        `${HOST}/GetShowlistMoviesVue?${list}&page=${page}&theaterId=0&vodCategoryId=0`,
+      );
+      for (const m of res.movies ?? []) ids.add(Number(m.id));
+      if (page >= (res.totalPages ?? 1)) break;
+    }
   }
   return ids;
 }
@@ -110,7 +118,7 @@ export async function scrapeBeitGabriel(): Promise<AdapterResult> {
         trailerUrl: clean(movie?.trailer) || undefined,
         ageRating: clean(movie?.rating) || undefined,
         // Anything the cinema page does not carry is a concert, a walk or a play, not a film.
-        isEvent: (cinema.size > 0 && !cinema.has(s.movieId)) || looksLikeEvent(title),
+        isEvent: (cinema.size > 0 && !cinema.has(Number(s.movieId))) || looksLikeEvent(title),
       });
     }
 

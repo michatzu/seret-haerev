@@ -1,10 +1,11 @@
 /**
- * Three chains run on the Israeli vendor Modulus with similar (not identical) JSON feeds:
- * Cinema City, Hot Cinema and Movieland. One request returns the whole chain.
+ * Three chains with similar (not identical) JSON feeds: Hot Cinema and Movieland run on the Israeli
+ * vendor Modulus, and one request returns the whole chain. Cinema City left Modulus for a Wix site
+ * in autumn 2026 and is read from that site's own data collections instead.
  */
 import type { AdapterResult, Attr, RawFilm, RawScreening } from "@/lib/types";
 import { VENUE_BY_ID, VENUES } from "@/data/venues";
-import { dmyToIso, localIsoToIso } from "@/lib/tz";
+import { localIsoToIso, ymdInIsrael } from "@/lib/tz";
 import { getJson, getText } from "./http";
 
 const KIDS_WORDS = ["מדובב", "מדובבת", "g kids", "kids"];
@@ -14,44 +15,188 @@ function venuesOf(chain: AdapterResult["chain"]) {
 }
 
 /* ---------------- Cinema City ---------------- */
-interface CcDate { Date: string; Hour: string; EventId: string; TheaterId: number }
-interface CcEvent { Name: string; Pic?: string; ExportCode: number; Dates: CcDate[] }
+/**
+ * The old feed, /tickets/Events, now answers with a redirect to the "now playing" page. The new site
+ * keeps the schedule in two Wix Data collections that its pages query as an anonymous visitor:
+ * SyncPresentations (one row per screening, carrying the ticketing system's own record in
+ * payloadJson) and SyncFeatures (one row per film). This asks them the same question, with the
+ * same public token the page itself is handed. Tickets are sold on tickets.cinema-city.co.il.
+ */
+const CC_SITE = "https://www.cinema-city.co.il";
+/** Wix's app id for the site's own code (Velo); its visitor token is what reads the collections. */
+const CC_VELO_APP_ID = "675bbcef-18d8-41f5-800e-131ec9e08762";
+const CC_PAGE = 1000; // Wix Data's largest page
+
+interface CcPresentation {
+  externalId: string; dateTime: string; featureId: number; featureName?: string | null;
+  venueName?: string | null; venueTypeName?: string | null; soldout?: boolean | null; private?: boolean | null;
+  payloadJson?: string | null;
+}
+interface CcPresentationPayload {
+  venueLocationId?: number | null; dubbedLanguageISO?: string | null; subbedLanguageISO?: string | null;
+  featureAttributeAbbrvs?: string[] | null;
+}
+interface CcFeature {
+  externalId: string; name?: string | null; additionalName?: string | null; imageWix?: string | null; image?: string | null;
+  duration?: number | null; genre?: string[] | null; ratingName?: string | null; synopsis?: string | null;
+  trailer?: string | null; categoryName?: string[] | null; director?: string | null; actors?: string | null;
+  releaseYear?: number | string | null; payloadJson?: string | { originalLanguageISO?: string | null } | null;
+}
+
+/** The anonymous visitor's token for the site's own code, as the page receives it. */
+async function ccToken(): Promise<string> {
+  const res = await getJson<{ apps?: Record<string, { instance?: string }> }>(`${CC_SITE}/_api/v1/access-tokens`);
+  const token = res.apps?.[CC_VELO_APP_ID]?.instance;
+  if (!token) throw new Error("Cinema City: no visitor token for the site's data collections");
+  return token;
+}
+
+/** Every row a Wix Data query matches, a page at a time. */
+async function ccQuery<T>(token: string, collection: string, query: Record<string, unknown>): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; offset < 50 * CC_PAGE; offset += CC_PAGE) {
+    const page = await getJson<{ dataItems?: { data: T }[]; pagingMetadata?: { hasNext?: boolean } }>(`${CC_SITE}/_api/cloud-data/v2/items/query`, {
+      method: "POST",
+      headers: {
+        authorization: token,
+        "content-type": "application/json",
+        // a script on the page asking, not a person opening a new page
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+      },
+      body: JSON.stringify({ dataCollectionId: collection, query: { ...query, paging: { limit: CC_PAGE, offset } } }),
+    });
+    const items = page.dataItems ?? [];
+    out.push(...items.map((d) => d.data));
+    if (!page.pagingMetadata?.hasNext || items.length < CC_PAGE) return out;
+  }
+  throw new Error(`Cinema City: ${collection} did not end after ${out.length} rows`);
+}
+
+function parseJson<T>(s: string | T | null | undefined): T | undefined {
+  if (!s) return undefined;
+  if (typeof s !== "string") return s;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+/** "wix:image://v1/829266_f5…~mv2.jpg/6698.jpg#originWidth=…" -> a 300x450 crop on Wix's image CDN. */
+function wixImageUrl(wix?: string | null): string | undefined {
+  const m = /^wix:image:\/\/v1\/([^/#]+)\/([^#]*)/.exec(wix ?? "");
+  if (!m) return undefined;
+  return `https://static.wixstatic.com/media/${m[1]}/v1/fill/w_300,h_450,al_c,q_90/${m[2] || m[1]}`;
+}
+
+/** Cinema City names the hall format on the film ("… - Infinity Vision"), cut short at 40 characters. */
+const CC_FORMAT_SUFFIX = /\s*-\s*infinity\s+vi\w*\s*$/i;
 
 export async function scrapeCinemaCity(): Promise<AdapterResult> {
-  const rows = await getJson<CcEvent[]>("https://www.cinema-city.co.il/tickets/Events");
-  const films: RawFilm[] = [];
-  const screenings: RawScreening[] = [];
-  for (const row of rows) {
-    const id = String(row.ExportCode);
-    const rawName = row.Name.trim();
-    const lower = rawName.toLowerCase();
-    const dubbed = lower.includes("מדובב");
-    const title = rawName.replace(/^g\s*kids\s*-\s*/i, "").replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
-    films.push({
-      chain: "cinemacity",
-      sourceId: id,
-      title,
-      posterUrl: row.Pic ? `https://cdn.modulus.co.il/fetch/cinemacity/w_300,h_450,mode_crop,quality_90/http://80.178.112.171/images/${encodeURIComponent(row.Pic)}` : undefined,
-      isKids: KIDS_WORDS.some((w) => lower.includes(w)),
-      isEvent: looksLikeEvent(rawName),
-    });
-    for (const d of row.Dates) {
-      const venueId = `cc-${d.TheaterId}`;
-      if (!VENUE_BY_ID.has(venueId)) continue;
-      const attrs: Attr[] = dubbed ? ["dubbed"] : [];
-      screenings.push({
-        chain: "cinemacity",
-        sourceId: d.EventId,
-        sourceFilmId: id,
-        venueId,
-        startsAt: dmyToIso(d.Date),
-        attrs,
-        dubbedLang: dubbed ? "he" : undefined,
-        bookingUrl: `https://www.cinema-city.co.il/order/?eventID=${d.EventId}`,
-      });
-    }
+  const token = await ccToken();
+  // Rows are replaced as the schedule changes, so the paging order is by the row's own id: two rows
+  // never tie on it, which a page boundary between showings at the same minute could otherwise split.
+  const rows = await ccQuery<CcPresentation>(token, "SyncPresentations", {
+    filter: { businessDate: { $gte: { $date: `${ymdInIsrael()}T00:00:00.000Z` } } },
+    sort: [{ fieldName: "_id", order: "ASC" }],
+    fields: ["externalId", "dateTime", "featureId", "featureName", "venueName", "venueTypeName", "soldout", "private", "payloadJson"],
+  });
+  const featureIds = [...new Set(rows.map((r) => String(r.featureId)))];
+  const features = new Map<string, CcFeature>();
+  if (featureIds.length) {
+    const list = await ccQuery<CcFeature>(token, "SyncFeatures", {
+      filter: { externalId: { $hasSome: featureIds } },
+      fields: ["externalId", "name", "additionalName", "imageWix", "image", "duration", "genre", "ratingName", "synopsis", "trailer", "categoryName", "director", "actors", "releaseYear", "payloadJson"],
+    }).catch(() => [] as CcFeature[]); // the schedule stands without the film details
+    for (const f of list) features.set(String(f.externalId), f);
   }
-  return { chain: "cinemacity", venues: venuesOf("cinemacity"), films, screenings };
+
+  const films = new Map<string, RawFilm>();
+  const screenings: RawScreening[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (row.private || seen.has(row.externalId)) continue;
+    seen.add(row.externalId);
+    const p = parseJson<CcPresentationPayload>(row.payloadJson);
+    const venueId = `cc-${p?.venueLocationId}`;
+    if (!p?.venueLocationId || !VENUE_BY_ID.has(venueId)) continue;
+    const id = String(row.featureId);
+    const feature = features.get(id);
+    const rawName = (feature?.name || row.featureName || "").trim();
+    if (!rawName) continue;
+
+    const dubbedLang = p.dubbedLanguageISO || nameDubbedLang(rawName);
+    if (!films.has(id)) films.set(id, ccFilm(id, rawName, feature, Boolean(dubbedLang)));
+
+    const attrs: Attr[] = [];
+    const format = [row.venueTypeName, row.venueName, ...(p.featureAttributeAbbrvs ?? [])].join(" ");
+    if (/\bvip\b/i.test(format)) attrs.push("vip");
+    if (/\bimax\b/i.test(format)) attrs.push("imax");
+    if (/\b4dx\b/i.test(format)) attrs.push("4dx");
+    if (/\bscreen\s*x\b/i.test(format)) attrs.push("screenx");
+    if (/\b3d\b/i.test(format) || /(^|\s)3D(\s|$)/.test(rawName)) attrs.push("3d");
+    if (dubbedLang) attrs.push("dubbed");
+    else if (p.subbedLanguageISO === "he") attrs.push("subbed");
+    screenings.push({
+      chain: "cinemacity",
+      sourceId: row.externalId,
+      sourceFilmId: id,
+      venueId,
+      startsAt: localIsoToIso(row.dateTime),
+      attrs,
+      dubbedLang: dubbedLang || undefined,
+      hall: row.venueName?.trim() || undefined,
+      bookingUrl: `https://tickets.cinema-city.co.il/order/${encodeURIComponent(row.externalId)}`,
+      soldOut: row.soldout ? true : undefined,
+    });
+  }
+  return { chain: "cinemacity", venues: venuesOf("cinemacity"), films: [...films.values()], screenings };
+}
+
+function ccFilm(id: string, rawName: string, f: CcFeature | undefined, dubbed: boolean): RawFilm {
+  const lower = rawName.toLowerCase();
+  const categories = f?.categoryName ?? [];
+  const title = rawName
+    .replace(CC_FORMAT_SUFFIX, "")
+    .replace(/^g\s*kids\s*-\s*/i, "")
+    .replace(/\s*-?\s*מדובב(ת)?\s*$/u, "")
+    .trim();
+  const original = (f?.additionalName ?? "").replace(/\s*-\s*infinity\s+vision\s*$/i, "").trim();
+  const year = f?.releaseYear ? Number(f.releaseYear) : undefined;
+  const lang = parseJson<{ originalLanguageISO?: string | null }>(f?.payloadJson)?.originalLanguageISO;
+  const list = (s?: string | null) => (s ? s.split(",").map((x) => x.trim()).filter(Boolean) : undefined);
+  return {
+    chain: "cinemacity",
+    sourceId: id,
+    title,
+    originalTitle: /[A-Za-z]/.test(original) ? original : undefined,
+    year: Number.isFinite(year) ? year : undefined,
+    runtime: f?.duration && f.duration > 0 ? f.duration : undefined,
+    // the category tags (KIDSHOW, SHOW) ride along in the genre list on some rows
+    genres: f?.genre?.filter((g) => g && !/^[A-Z]+$/.test(g)),
+    ageRating: f?.ratingName && f.ratingName !== "טרם נקבע" ? f.ratingName : undefined,
+    synopsis: f?.synopsis?.trim() || undefined,
+    trailerUrl: f?.trailer || undefined,
+    director: f?.director?.trim() || undefined,
+    cast: list(f?.actors),
+    // the dubbed print reports the dub as its language
+    language: !dubbed && lang ? lang : undefined,
+    posterUrl: wixImageUrl(f?.imageWix) ?? (f?.image || undefined),
+    isKids: categories.includes("KIDSHOW") || KIDS_WORDS.some((w) => lower.includes(w)),
+    // "SHOW" is the chain's own category for stage shows and broadcasts; KIDSHOW is children's films
+    isEvent: categories.includes("SHOW") || looksLikeEvent(rawName),
+  };
+}
+
+/** Dub language from a name like "סקרוג' - מדובב לרוסית" when the record does not say. */
+function nameDubbedLang(name: string): string | undefined {
+  if (!/מדובב/.test(name)) return undefined;
+  if (/לרוסית/.test(name)) return "ru";
+  if (/לאנגלית/.test(name)) return "en";
+  if (/לערבית/.test(name)) return "ar";
+  return "he";
 }
 
 /* ---------------- Hot Cinema ---------------- */
@@ -61,6 +206,7 @@ interface HotDate {
   Is3D?: boolean | null; IsAtmos2D?: boolean | null; IsAtmos3D?: boolean | null; IsVIP?: boolean | null; IsPerformance?: boolean | null;
 }
 interface HotMovie { MovieName: string; MovieId: number; Dates: HotDate[] }
+const HOT_NOSTALGIA = /^\s*סינמה\s+נוסטלגיה\s*[-–—:]\s*/u;
 
 export async function scrapeHot(): Promise<AdapterResult> {
   const rows = await getJson<HotMovie[]>("https://hotcinema.co.il/tickets/theaterevents?theaterid=1");
@@ -69,10 +215,15 @@ export async function scrapeHot(): Promise<AdapterResult> {
   const screenings: RawScreening[] = [];
   for (const row of rows) {
     const id = String(row.MovieId);
-    const title = row.MovieName.replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
+    // "סינמה נוסטלגיה - נשק קטלני" is Hot's classics series: a film, under the series' name
+    const nostalgia = HOT_NOSTALGIA.test(row.MovieName);
+    const title = row.MovieName.replace(HOT_NOSTALGIA, "").replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
     const anyDubbed = row.Dates.some((d) => d.DubbedLanguage);
     const allPerformance = row.Dates.length > 0 && row.Dates.every((d) => d.IsPerformance);
-    films.push({ chain: "hot", sourceId: id, title, posterUrl: realPoster(posters.get(row.MovieId)), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: (allPerformance && !callsItselfAFilm(title)) || looksLikeEvent(title) });
+    // Hot flags these as performances too, as it does stand-up and children's theatre; nobody
+    // dubs a stage show, so a dubbed title is a film whatever the flag says
+    const filmAfterAll = nostalgia || /מדובב/.test(row.MovieName) || callsItselfAFilm(title);
+    films.push({ chain: "hot", sourceId: id, title, posterUrl: realPoster(posters.get(row.MovieId)), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: (allPerformance && !filmAfterAll) || looksLikeEvent(title) });
     for (const d of row.Dates) {
       const venueId = `hot-${d.TheaterId}`;
       if (!VENUE_BY_ID.has(venueId)) continue;
@@ -180,8 +331,10 @@ function mlDubbedLang(d: MlDate): string | undefined {
 }
 
 const EVENT_WORDS = [
-  "סטנדאפ", "הצגה", "הצגת", "מופע", "אופרה", "בלט", "קונצרט", "הופעה", "live", "הדרן", "אולטרה שואו",
-  "מחווה", "שעת סיפור", "הרצאה", "סינמה נוסטלגיה", "טרום בכורה", "party",
+  // A re-release ("הדרן"), an advance screening ("טרום בכורה") and a classics series ("סינמה
+  // נוסטלגיה") are all films on a screen, and once hid Avengers: Endgame and Lethal Weapon.
+  "סטנדאפ", "הצגה", "הצגת", "מופע", "אופרה", "בלט", "קונצרט", "הופעה", "live", "אולטרה שואו",
+  "מחווה", "שעת סיפור", "הרצאה", "party",
   // a festival programme lists its own machinery alongside the films
   "כנס", "סדנה", "סדנת", "פאנל", "טקס", "מפגש יוצרים", "שיח יוצרים", "מסיבת עיתונאים", "אירוע פתיחה",
   "אירוע נעילה", "תערוכה", "מאסטר קלאס", "masterclass", "workshop",

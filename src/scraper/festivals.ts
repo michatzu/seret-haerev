@@ -158,20 +158,30 @@ interface JtItem {
   img?: string;
   link?: string;
   "parent-group"?: string;
+  groups?: string[];
   dates?: JtDate[];
 }
 
 export async function scrapeJerusalemTheatre(days = 45): Promise<AdapterResult> {
-  // items is an object keyed by id, not an array
-  const board = JSON.parse(await getText(JT_BOARD, { headers: { "user-agent": UA } }, 30_000)) as { items?: Record<string, JtItem> | JtItem[] };
+  // items is an object keyed by the next date, not an array: a film with three dates is listed three times
+  const board = JSON.parse(await getText(JT_BOARD, { headers: { "user-agent": UA } }, 30_000)) as {
+    items?: Record<string, JtItem> | JtItem[];
+    groups?: Record<string, { parent?: string }>;
+  };
   const films = new Map<string, RawFilm>();
   const screenings: RawScreening[] = [];
+  const tickets = new Set<string>();
   const now = Date.now();
   const horizon = now + days * 864e5;
 
+  // A festival's film nights live under the festival, but they keep their cinema series too
+  // ("הקרנות מיוחדות"), the way "הסנדק" sits in both the piano festival and the cinema.
+  const isCinema = (item: JtItem) =>
+    item["parent-group"] === "eventGrp_cinema" || (item.groups ?? []).some((g) => board.groups?.[g]?.parent === "eventGrp_cinema");
+
   const items = Array.isArray(board.items) ? board.items : Object.values(board.items ?? {});
   for (const item of items) {
-    if (item["parent-group"] !== "eventGrp_cinema") continue;
+    if (!isCinema(item)) continue;
     const title = (item.title ?? "").replace(/\s+/g, " ").trim();
     if (!title || !item.dates?.length) continue;
     const filmId = `jt-${item.id ?? shortHash(title)}`;
@@ -179,6 +189,9 @@ export async function scrapeJerusalemTheatre(days = 45): Promise<AdapterResult> 
 
     for (const d of item.dates) {
       if (!d.date || d.status === "cancelled") continue;
+      const key = d.ticket ?? `${filmId}-${d.date}`;
+      if (tickets.has(key)) continue;
+      tickets.add(key);
       // the board's number looks like a unix timestamp but carries Israel wall-clock time: the
       // theatre's own page shows 18:00 where a true epoch would read 21:00
       const wall = new Date(d.date * 1000);
@@ -197,7 +210,7 @@ export async function scrapeJerusalemTheatre(days = 45): Promise<AdapterResult> 
       }
       screenings.push({
         chain: CHAIN,
-        sourceId: `jt-${d.ticket ?? `${filmId}-${d.date}`}`,
+        sourceId: `jt-${key}`,
         sourceFilmId: filmId,
         venueId: JT_VENUE.id,
         startsAt,

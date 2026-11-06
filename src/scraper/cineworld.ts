@@ -114,7 +114,12 @@ function customerBookingUrl(link: string): string {
   return link.replace(/\/api\/order\//, "/order/");
 }
 
-export async function scrapeCineworld(t: Tenant, days = 8): Promise<AdapterResult> {
+/**
+ * The regular programme runs a week (Thursday to Wednesday), but a big release goes on sale weeks
+ * earlier, on a handful of scattered days. The API names the days a branch has anything on, so the
+ * horizon can be wide without asking about empty days.
+ */
+export async function scrapeCineworld(t: Tenant, days = 60): Promise<AdapterResult> {
   const api = `${t.base}/${t.prefix}/data-api-service/v1/quickbook/${t.tenant}`;
   const until = ymdPlusDays(days);
   const { body } = await getJson<{ body: { cinemas: CwCinema[] } }>(`${api}/cinemas/with-event/until/${until}?attr=&lang=he_IL`);
@@ -135,8 +140,18 @@ export async function scrapeCineworld(t: Tenant, days = 8): Promise<AdapterResul
     };
   });
 
+  const today = ymdPlusDays(0);
+  const everyDay = Array.from({ length: Math.min(days, 8) }, (_, i) => ymdPlusDays(i));
+  const dated = await pool(body.cinemas, 4, (cinema) =>
+    getJson<{ body: { dates?: string[] } }>(`${api}/dates/in-cinema/${cinema.id}/until/${until}?attr=&lang=he_IL`),
+  );
   const jobs: { cinema: CwCinema; date: string }[] = [];
-  for (const cinema of body.cinemas) for (let i = 0; i < days; i++) jobs.push({ cinema, date: ymdPlusDays(i) });
+  for (const [i, cinema] of body.cinemas.entries()) {
+    const d = dated[i];
+    // without the list, fall back to asking about each day of the coming week
+    const dates = d.status === "fulfilled" && d.value.body.dates?.length ? d.value.body.dates.filter((x) => x >= today && x <= until) : everyDay;
+    for (const date of dates) jobs.push({ cinema, date });
+  }
 
   const films = new Map<string, RawFilm>();
   const screenings: RawScreening[] = [];
