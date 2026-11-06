@@ -31,24 +31,48 @@ function index(snapshot: Snapshot, key: string): Loaded {
   return { key, snapshot, films, venues, byFilm, screening };
 }
 
-/** Loads the snapshot: remote URL with 10-minute revalidation, else data/snapshot.json (re-read when it changes). */
+/**
+ * The remote snapshot, kept here rather than in Next's data cache. That cache refuses anything over
+ * 2 MB, and refuses it quietly: it went on serving the last copy small enough to store — the
+ * schedule of 2 November — while every revalidation fetched a fresh one and threw it away. So each
+ * server instance keeps the parsed snapshot itself, asks again after ten minutes, and sends the
+ * ETag along, so an unchanged file costs a 304 rather than three megabytes.
+ */
+let remote: { at: number; etag?: string } | null = null;
+let inflight: Promise<Loaded> | null = null;
+
+async function fromRemote(url: string): Promise<Loaded> {
+  const headers: Record<string, string> = {};
+  if (TOKEN) headers.authorization = `Bearer ${TOKEN}`;
+  if (cache && remote?.etag) headers["if-none-match"] = remote.etag;
+  const res = await fetch(url, { cache: "no-store", headers });
+  if (res.status === 304 && cache) {
+    remote = { at: Date.now(), etag: remote?.etag };
+    return cache;
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const snapshot = (await res.json()) as Snapshot;
+  remote = { at: Date.now(), etag: res.headers.get("etag") ?? undefined };
+  if (!cache || cache.key !== snapshot.generatedAt) cache = index(snapshot, snapshot.generatedAt);
+  return cache;
+}
+
+/** Loads the snapshot: the remote URL, re-read at most every ten minutes, else data/snapshot.json (re-read when it changes). */
 export async function getData(): Promise<Loaded> {
   if (URL) {
+    if (cache && remote && Date.now() - remote.at < REVALIDATE_SECONDS * 1000) return cache;
     try {
-      const res = await fetch(URL, {
-        next: { revalidate: REVALIDATE_SECONDS },
-        headers: TOKEN ? { authorization: `Bearer ${TOKEN}` } : undefined,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const snapshot = (await res.json()) as Snapshot;
-      if (cache && cache.key === snapshot.generatedAt) return cache;
-      cache = index(snapshot, snapshot.generatedAt);
-      return cache;
+      // one request at a time per instance, however many pages are waiting on it
+      inflight ??= fromRemote(URL).finally(() => { inflight = null; });
+      return await inflight;
     } catch (e) {
       // The remote snapshot is the fresher copy, not the only one. Before the scrape has ever run
       // the branch does not exist yet, and later it could be briefly unreachable; either way the
-      // schedule shipped with the build is far better than an error page.
-      if (cache) return cache;
+      // last copy read, or the schedule shipped with the build, is far better than an error page.
+      if (cache && remote) {
+        remote = { ...remote, at: Date.now() - (REVALIDATE_SECONDS - 60) * 1000 }; // try again in a minute
+        return cache;
+      }
       console.warn("snapshot fetch failed, falling back to the bundled copy:", e instanceof Error ? e.message : e);
     }
   }
