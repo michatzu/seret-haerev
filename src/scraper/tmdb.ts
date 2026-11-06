@@ -85,7 +85,10 @@ export async function enrichFilms(films: Film[]): Promise<{ matched: number; rat
         return seen.get(id);
       };
       const tmdbId = await findTmdbId(key, film, async (id) => runtimeAgrees(film.runtime, (await detailsOf(id))?.runtime));
-      entry = { v: MATCH_VERSION, at: new Date().toISOString(), tmdbId: tmdbId ?? null, imdbRating: entry?.imdbRating, imdbVotes: entry?.imdbVotes, imdbAt: entry?.imdbAt };
+      // The rating belongs to the film it was read for. Re-matched to a different one, it has to be
+      // read again: kept, Matmon's 1990 Troll 2 went on showing the 2025 Norwegian film's 5.3.
+      const was = entry?.tmdbId === (tmdbId ?? null) ? entry : undefined;
+      entry = { v: MATCH_VERSION, at: new Date().toISOString(), tmdbId: tmdbId ?? null, imdbRating: was?.imdbRating, imdbVotes: was?.imdbVotes, imdbAt: was?.imdbAt };
       if (tmdbId) entry.data = await detailsOf(tmdbId);
       cache[ck] = entry;
     }

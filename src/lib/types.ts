@@ -129,6 +129,19 @@ export interface Snapshot {
    * merged away, a concert filtered out — is gone, not missing.
    */
   venueSource?: Record<string, string>;
+  /** How every source is doing, carried from run to run (src/scraper/health.ts). */
+  health?: Health;
+}
+
+export interface Health {
+  /** When each source was last read successfully, by label. */
+  lastOk: Record<string, string>;
+  /** When each problem was last raised, so a lasting one is raised once a day rather than hourly. */
+  alerted: Record<string, string>;
+  /** Everything wrong as of this run. */
+  problems: string[];
+  /** What this run raised: new problems, or old ones a day on. The workflow fails on these. */
+  alerts: string[];
 }
 
 /* ---- raw shapes produced by adapters, before films are unified across chains ---- */
@@ -175,4 +188,6 @@ export interface AdapterResult {
   venues: Venue[];
   films: RawFilm[];
   screenings: RawScreening[];
+  /** What the adapter skipped and a person should look at, such as a branch it does not know. */
+  warnings?: string[];
 }

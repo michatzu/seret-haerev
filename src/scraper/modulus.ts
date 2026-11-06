@@ -14,6 +14,18 @@ function venuesOf(chain: AdapterResult["chain"]) {
   return VENUES.filter((v) => v.chain === chain);
 }
 
+/**
+ * Branch ids a feed names that src/data/venues.ts does not know. They are skipped, since a cinema
+ * with no name or place cannot be listed, and reported, since a new branch is otherwise invisible.
+ */
+function unknownBranches() {
+  const seen = new Map<string, number>();
+  return {
+    add: (id: string) => void seen.set(id, (seen.get(id) ?? 0) + 1),
+    list: () => [...seen].map(([id, n]) => `unknown branch ${id}, ${n} screenings skipped; add it to src/data/venues.ts`),
+  };
+}
+
 /* ---------------- Cinema City ---------------- */
 /**
  * The old feed, /tickets/Events, now answers with a redirect to the "now playing" page. The new site
@@ -116,12 +128,14 @@ export async function scrapeCinemaCity(): Promise<AdapterResult> {
   const films = new Map<string, RawFilm>();
   const screenings: RawScreening[] = [];
   const seen = new Set<string>();
+  const unknown = unknownBranches();
   for (const row of rows) {
     if (row.private || seen.has(row.externalId)) continue;
     seen.add(row.externalId);
     const p = parseJson<CcPresentationPayload>(row.payloadJson);
     const venueId = `cc-${p?.venueLocationId}`;
-    if (!p?.venueLocationId || !VENUE_BY_ID.has(venueId)) continue;
+    if (!p?.venueLocationId) continue;
+    if (!VENUE_BY_ID.has(venueId)) { unknown.add(venueId); continue; }
     const id = String(row.featureId);
     const feature = features.get(id);
     const rawName = (feature?.name || row.featureName || "").trim();
@@ -152,7 +166,7 @@ export async function scrapeCinemaCity(): Promise<AdapterResult> {
       soldOut: row.soldout ? true : undefined,
     });
   }
-  return { chain: "cinemacity", venues: venuesOf("cinemacity"), films: [...films.values()], screenings };
+  return { chain: "cinemacity", venues: venuesOf("cinemacity"), films: [...films.values()], screenings, warnings: unknown.list() };
 }
 
 function ccFilm(id: string, rawName: string, f: CcFeature | undefined, dubbed: boolean): RawFilm {
@@ -213,6 +227,7 @@ export async function scrapeHot(): Promise<AdapterResult> {
   const posters = await hotPosters(rows[0]?.MovieId).catch(() => new Map<number, string>());
   const films: RawFilm[] = [];
   const screenings: RawScreening[] = [];
+  const unknown = unknownBranches();
   for (const row of rows) {
     const id = String(row.MovieId);
     // "סינמה נוסטלגיה - נשק קטלני" is Hot's classics series: a film, under the series' name
@@ -226,7 +241,7 @@ export async function scrapeHot(): Promise<AdapterResult> {
     films.push({ chain: "hot", sourceId: id, title, posterUrl: realPoster(posters.get(row.MovieId)), isKids: anyDubbed && row.Dates.every((d) => d.DubbedLanguage && langCode(d.DubbedLanguage) === "he"), isEvent: (allPerformance && !filmAfterAll) || looksLikeEvent(title) });
     for (const d of row.Dates) {
       const venueId = `hot-${d.TheaterId}`;
-      if (!VENUE_BY_ID.has(venueId)) continue;
+      if (!VENUE_BY_ID.has(venueId)) { unknown.add(venueId); continue; }
       const attrs: Attr[] = [];
       if (d.Is3D) attrs.push("3d");
       if (d.IsAtmos2D || d.IsAtmos3D) attrs.push("atmos");
@@ -245,7 +260,7 @@ export async function scrapeHot(): Promise<AdapterResult> {
       });
     }
   }
-  return { chain: "hot", venues: venuesOf("hot"), films, screenings };
+  return { chain: "hot", venues: venuesOf("hot"), films, screenings, warnings: unknown.list() };
 }
 
 /* ---------------- Movieland ---------------- */
@@ -263,6 +278,7 @@ export async function scrapeMovieland(): Promise<AdapterResult> {
   const rows = await getJson<MlEvent[]>("https://movieland.co.il/api/Events");
   const films: RawFilm[] = [];
   const screenings: RawScreening[] = [];
+  const unknown = unknownBranches();
   for (const row of rows) {
     const id = String(row.MovieId);
     const title = row.Name.replace(/\s*-?\s*מדובב(ת)?\s*$/u, "").trim();
@@ -287,7 +303,8 @@ export async function scrapeMovieland(): Promise<AdapterResult> {
     for (const d of row.Dates) {
       const venueId = `ml-${d.TheaterId}`;
       const venue = VENUE_BY_ID.get(venueId);
-      if (!venue || !d.BookingNativeUrl) continue;
+      if (!venue) { unknown.add(venueId); continue; }
+      if (!d.BookingNativeUrl) continue;
       const attrs: Attr[] = [];
       const group = d.SiteGroup ?? "";
       const dubbedLang = mlDubbedLang(d);
@@ -309,7 +326,7 @@ export async function scrapeMovieland(): Promise<AdapterResult> {
       });
     }
   }
-  return { chain: "movieland", venues: venuesOf("movieland"), films, screenings };
+  return { chain: "movieland", venues: venuesOf("movieland"), films, screenings, warnings: unknown.list() };
 }
 
 function langCode(hebrewName: string): string {

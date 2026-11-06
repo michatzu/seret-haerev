@@ -15,6 +15,7 @@ import { rememberRetired } from "@/scraper/retired";
 import { enrichFilms } from "@/scraper/tmdb";
 import { fillPosters } from "@/scraper/posters";
 import { addSummaries } from "@/scraper/summaries";
+import { checkHealth } from "@/scraper/health";
 
 const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }[] = [
   { chain: "planet", run: () => scrapeCineworld(PLANET) },
@@ -36,6 +37,7 @@ async function main() {
   const results: AdapterResult[] = [];
   const reports: SourceReport[] = [];
   const venueSource: Record<string, string> = {};
+  const warnings: Record<string, string[]> = {};
   await Promise.all(
     selected.map(async (t) => {
       const t0 = Date.now();
@@ -44,6 +46,7 @@ async function main() {
         results.push(r);
         for (const v of r.venues) venueSource[v.id] = t.label ?? t.chain;
         for (const s of r.screenings) venueSource[s.venueId] = t.label ?? t.chain;
+        if (r.warnings?.length) warnings[t.label ?? t.chain] = r.warnings;
         reports.push({ chain: t.label ?? t.chain, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 });
       } catch (e) {
         reports.push({ chain: t.label ?? t.chain, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) });
@@ -77,10 +80,18 @@ async function main() {
   const t3 = Date.now();
   const sum = await addSummaries(snapshot.films);
   console.log(sum.skipped ? "summaries: skipped (no ANTHROPIC_API_KEY)" : `summaries: asked=${sum.asked} repaired=${sum.repaired} dropped=${sum.dropped} ${Date.now() - t3}ms`);
+  // Only the run on GitHub can tell anybody (its failure sends an email), so only it marks a problem
+  // as raised; a run from the home machine writes its problems to its log.
+  snapshot.health = checkHealth({
+    fresh: snapshot, previous, reports, warnings,
+    labels: tasks.map((t) => t.label ?? t.chain),
+    canAlert: process.env.GITHUB_ACTIONS === "true",
+  });
   const out = path.join(process.cwd(), "data", "snapshot.json");
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snapshot));
   for (const r of reports) console.log(`${r.ok ? "ok " : "ERR"} ${r.chain.padEnd(11)} films=${String(r.films).padStart(4)} screenings=${String(r.screenings).padStart(5)} ${r.ms}ms ${r.error ?? ""}`);
+  for (const p of snapshot.health.problems) console.log(`health: ${p}`);
   console.log(`snapshot: ${snapshot.films.length} films, ${snapshot.screenings.length} screenings, ${snapshot.venues.length} venues, ${retired} names kept for films that left -> ${path.relative(process.cwd(), out)}`);
 }
 

@@ -51,3 +51,7 @@ jobs:
           git add -A
           git commit -q -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
+      # After publishing, so a problem never holds the schedule back. Failing here is what makes GitHub
+      # email the owner; each problem is raised once, and again a day later if it is still there.
+      - name: Check source health
+        run: npm run --silent health
