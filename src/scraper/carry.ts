@@ -1,15 +1,16 @@
 /**
  * A source that fails must not empty its cinemas off the site.
  *
- * Movieland and Secret Tel Aviv sit behind Cloudflare's bot challenge, which passes a
- * home connection and stops any data centre, so the hourly refresh on GitHub cannot reach them at
- * all. That is a protection their operators chose and this project does not try to defeat it; what
- * it does instead is refuse to publish a snapshot that quietly drops those cinemas, by carrying
- * their previous schedule forward.
+ * Movieland and Jaffa Cinema answer a home connection and refuse any data centre, so the hourly
+ * refresh on GitHub cannot reach them at all. That is a choice their operators made and this project
+ * does not try to defeat it; what it does instead is refuse to publish a snapshot that quietly drops
+ * those cinemas, by carrying their previous schedule forward.
  *
- * It is carried for a day at most. A screening from a stale schedule is a small risk; a screening
- * from a schedule nobody has checked in a week is a broken promise, and the list is better off
- * admitting the cinema is missing.
+ * Any other source is carried for a day at most: a feed that breaks should be noticed, and a
+ * schedule nobody has re-read in a week is a broken promise. The two that only a home machine can
+ * read are kept for a week, because that machine runs once a day when it is on, and is sometimes
+ * off. Their schedules are published a week at a time, and only screenings still ahead are carried,
+ * so an old one fades rather than lingers.
  *
  * The day is counted from when the schedule was last actually read, which the snapshot keeps per
  * venue in `carried`. Counting from the previous snapshot instead let every hourly run restart the
@@ -18,6 +19,9 @@
 import type { Film, Screening, Snapshot, Venue } from "@/lib/types";
 
 const MAX_AGE_HOURS = 24;
+/** Sources read only from a home machine (see scripts/refresh-local.sh), by the scraper's label. */
+const HOME_ONLY: Record<string, number> = { movieland: 7 * 24, "jaffa cinema": 7 * 24 };
+const LONGEST = Math.max(MAX_AGE_HOURS, ...Object.values(HOME_ONLY));
 
 export interface CarryResult { venues: number; screenings: number; from?: string }
 
@@ -28,7 +32,7 @@ export function carryForward(fresh: Snapshot, previous: Snapshot | null, unread:
   if (!previous?.generatedAt) return { venues: 0, screenings: 0 };
   const hoursSince = (iso: string) => (now - Date.parse(iso)) / 3_600_000;
   const ageHours = hoursSince(previous.generatedAt);
-  if (!Number.isFinite(ageHours) || ageHours > MAX_AGE_HOURS || ageHours < 0) return { venues: 0, screenings: 0 };
+  if (!Number.isFinite(ageHours) || ageHours > LONGEST || ageHours < 0) return { venues: 0, screenings: 0 };
 
   /** When this venue's schedule was last read from its source, not merely republished. */
   const readAt = (id: string) => previous.carried?.[id] ?? previous.generatedAt;
@@ -38,8 +42,9 @@ export function carryForward(fresh: Snapshot, previous: Snapshot | null, unread:
     const label = previous.venueSource?.[v.id];
     return label ? unread.labels.has(label) : unread.chains.has(v.chain);
   };
+  const maxAge = (v: Venue) => HOME_ONLY[previous.venueSource?.[v.id] ?? v.chain] ?? MAX_AGE_HOURS;
   const liveVenues = new Set(fresh.screenings.map((s) => s.venueId));
-  const missing = previous.venues.filter((v) => !liveVenues.has(v.id) && sourceUnread(v) && hoursSince(readAt(v.id)) <= MAX_AGE_HOURS);
+  const missing = previous.venues.filter((v) => !liveVenues.has(v.id) && sourceUnread(v) && hoursSince(readAt(v.id)) <= maxAge(v));
   if (!missing.length) return { venues: 0, screenings: 0, from: previous.generatedAt };
 
   const missingIds = new Set(missing.map((v) => v.id));
