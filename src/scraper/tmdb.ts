@@ -19,7 +19,7 @@ interface CacheEntry { v?: number; at: string; tmdbId?: number | null; data?: En
  * is restored from the data branch on every run — so without this a fixed rule would keep handing
  * back the answer it was written to correct.
  */
-const MATCH_VERSION = 5;
+const MATCH_VERSION = 6;
 type Cache = Record<string, CacheEntry>;
 
 export interface Enrichment {
@@ -160,27 +160,34 @@ interface SearchHit { id: number; title: string; original_title: string; release
 
 async function findTmdbId(key: string, film: Film, accept: (id: number) => Promise<boolean>): Promise<number | undefined> {
   const queries: { q: string; lang: string }[] = [];
-  if (film.originalTitle) queries.push({ q: film.originalTitle, lang: "en-US" });
-  queries.push({ q: film.title, lang: "he-IL" });
+  // TMDB answers in the language it is asked in, and a title can only be checked against a name in
+  // its own script: asked in Hebrew, Gondry's "The Science of Sleep" comes back as "\u05de\u05d3\u05e2\u05d9 \u05d4\u05d7\u05dc\u05d5\u05dd" and
+  // "La Science des r\u00eaves", neither of which agrees, and the one entry still called "The Science of
+  // Sleep" is a 2016 short with two votes.
+  const ask = (q: string, lang = /[\u05d0-\u05ea]/.test(q) ? "he-IL" : "en-US") => {
+    if (q && !queries.some((x) => x.q === q)) queries.push({ q, lang });
+  };
+  if (film.originalTitle) ask(film.originalTitle, "en-US");
+  ask(film.title);
   // One cinema's "\u05e4\u05d5\u05dc\u05d7\u05df" is another's "\u05e4\u05d5\u05dc\u05d7\u05df \u05d4\u05d3\u05de\u05d9\u05dd". The longer name is the one TMDB knows, and
   // a title we only hold in its short form is exactly the one that matches the wrong film.
-  for (const s of film.sources) {
-    const t = s.title.replace(/\s+/g, " ").trim();
-    if (t && !queries.some((q) => q.q === t)) queries.push({ q: t, lang: "he-IL" });
-  }
+  for (const s of film.sources) ask(s.title.replace(/\s+/g, " ").trim());
   // A title stripped of its subtitle is the weakest thing we ask with, so it has to keep at least
   // two words: Fassbinder's "\u05e2\u05dc\u05d9: \u05e4\u05d7\u05d3 \u05d0\u05d5\u05db\u05dc \u05d0\u05ea \u05d4\u05e0\u05e9\u05de\u05d4" cut down to "\u05e2\u05dc\u05d9" is the exact Hebrew name of Michael Mann's Ali.
   const stem = film.title.split(":")[0].trim();
-  if (film.title.includes(":") && stem.split(/\s+/).length >= 2) queries.push({ q: stem, lang: "he-IL" });
+  if (film.title.includes(":") && stem.split(/\s+/).length >= 2) ask(stem);
+  const now = new Date().getFullYear();
+  const repertory = !film.year && isRepertory(film) ? { era: eraHint(film.synopsis) } : undefined;
   for (const { q, lang } of queries) {
     const url = `${TMDB}/search/movie?api_key=${key}&language=${lang}&region=IL&include_adult=false&query=${encodeURIComponent(q)}${film.year ? `&primary_release_year=${film.year}` : ""}`;
     let res = await getJson<{ results: SearchHit[] }>(url);
     if (!res.results.length && film.year) res = await getJson<{ results: SearchHit[] }>(url.replace(/&primary_release_year=\d+/, ""));
     const hits = res.results.filter((h) => h.vote_count > 0 || h.popularity > 1);
     if (!hits.length) continue;
-    // prefer recent releases (we list current screenings) and the closest year
-    const now = new Date().getFullYear();
-    hits.sort((a, b) => score(b, film.year, now) - score(a, film.year, now));
+    // A chain's film is a current release, so the recent one and the closest year win. A repertory
+    // night is not dated at all, and is ranked on what the venue says about it instead.
+    const rank = (h: SearchHit) => repertory ? repertoryScore(h, q, repertory.era, now) : score(h, film.year, now);
+    hits.sort((a, b) => rank(b) - rank(a));
     // TMDB matches loosely on alternative titles, which once turned "\u05d4\u05de\u05e9\u05d7\u05e7" into Avengers:
     // Endgame ("\u05e1\u05d5\u05e3 \u05d4\u05de\u05e9\u05d7\u05e7"). Require the winner to actually resemble what we asked for.
     const agrees = hits.find((h) => titlesAgree(q, h.title) || titlesAgree(q, h.original_title));
@@ -253,6 +260,52 @@ function score(h: SearchHit, year: number | undefined, now: number): number {
   if (year && y) s += y === year ? 6 : Math.abs(y - year) === 1 ? 3 : -2;
   else if (y) s += y >= now - 1 ? 3 : y >= now - 3 ? 1 : -1;
   return s;
+}
+
+/**
+ * Venues that programme by taste rather than by release calendar, and say so in a line of their
+ * own instead of a date. Matmon runs the 1990 Troll 2 in the same month as Refn's new film, so
+ * "the recent one" is no rule there: the recency bonus handed the cult night Netflix's 2025
+ * Norwegian Troll 2. A film any chain also lists is a current release, and is ranked as one.
+ */
+const REPERTORY_SOURCE = /^stlv-/;
+const isRepertory = (film: Film) => film.sources.length > 0 && film.sources.every((s) => REPERTORY_SOURCE.test(s.id));
+
+/**
+ * What the listing's own blurb says about the film's age. Only the direction is read, never the
+ * decade: "a nostalgic 90s movie night" shows The Land Before Time of 1988, and taking the 90s at
+ * their word would pick one of its sequels.
+ */
+type Era = "old" | "new";
+const OLD_HINT = /\b(classics?|cult|retro|nostalgi\w*|vintage|throwback|anniversary|restored|remaster\w*|(?:19\d0|20[01]0|[3-9]0)['’]?s)\b/i;
+const NEW_HINT = /\b(latest|newest|brand[- ]new|new (?:release|film|movie)|just released|recently released|long[- ]awaited)\b/i;
+function eraHint(text: string | undefined): Era | undefined {
+  if (!text) return undefined;
+  const old = OLD_HINT.test(text), recent = NEW_HINT.test(text);
+  return old === recent ? undefined : old ? "old" : "new";
+}
+
+/**
+ * A repertory film with no year. Votes stand in for the date: an entry that has gathered hundreds
+ * of them is the film people mean, where popularity is this week's attention and favours whatever
+ * just came out. A title that is exactly the name asked for beats one that merely contains it ("The
+ * Land Before Time" is not its fifth sequel), and the blurb's era settles a tie between two real
+ * films of one name: "cult classic" is the 1990 Troll 2, "the latest" is Refn's 2026 Her Private Hell.
+ */
+function repertoryScore(h: SearchHit, q: string, era: Era | undefined, now: number): number {
+  const y = h.release_date ? Number(h.release_date.slice(0, 4)) : undefined;
+  let s = Math.log10(1 + h.vote_count) * 2 + Math.log10(1 + h.popularity);
+  if (sameTitle(q, h.title) || sameTitle(q, h.original_title)) s += 3;
+  if (era && y) {
+    const age = now - y;
+    s += era === "old" ? (age >= 10 ? 3 : age <= 3 ? -3 : 0) : (age <= 2 ? 3 : age >= 10 ? -3 : 0);
+  }
+  return s;
+}
+/** The same words, every one of them, in any order and case. */
+function sameTitle(a: string, b: string): boolean {
+  const A = titleTokens(a), B = titleTokens(b);
+  return A.size > 0 && A.size === B.size && [...A].every((w) => B.has(w));
 }
 
 interface Details {
