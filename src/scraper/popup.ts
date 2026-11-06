@@ -56,7 +56,14 @@ function toVenue(v: PopupVenue): Venue {
 const resolved = new Map<string, Venue | null>();
 const looksLikeAddress = (s: string) => /^[\u05d0-\u05ea\w'"\u05f3\u05f4.\- ]{2,40}\s+\d{1,4}$/.test(s.trim()) || /^\d/.test(s.trim());
 
+/**
+ * Cinemas with an adapter of their own. A feed that mentions one would otherwise geocode it into
+ * a second, pop-up copy of the same place, with a handful of the screenings the real one has.
+ */
+const COVERED_ELSEWHERE = /\u05e1\u05d9\u05e0\u05de\u05d8\u05e7|cinematheque|jaffa cinema|\u05e7\u05d5\u05dc\u05e0\u05d5\u05e2 \u05d9\u05e4\u05d5/i;
+
 async function resolveVenue(rawName: string, address = "", city = "\u05ea\u05dc \u05d0\u05d1\u05d9\u05d1"): Promise<Venue | null> {
+  if (COVERED_ELSEWHERE.test(rawName)) return null;
   const known = findVenue(rawName) ?? (address ? findVenue(address) : undefined);
   if (known) return toVenue(known);
 
@@ -256,6 +263,7 @@ function icalEvents(text: string): Record<string, string>[] {
       const value = line.slice(i + 1).replace(/\\n/g, " ").replace(/\\,/g, ",").replace(/\;/g, ";").replace(/\\\\/g, "\\");
       cur[key] = value;
       if (key === "DTSTART") cur.DTSTART_PARAMS = params;
+      if (key === "DTEND") cur.DTEND_PARAMS = params;
     }
   }
   return out;
@@ -275,6 +283,28 @@ function icalToIso(value: string, params: string): string | null {
 /** A screening, not a themed party. Beware "Live Cinematic Techno" and "Wines From Movies". */
 const SCREENING_RE = /\b(screening|sceening|film screening|movie night|cinema)\b/i;
 const NOT_SCREENING_RE = /\b(techno|dj|party|wine|tasting|quiz|karaoke|comedy night|open mic)\b/i;
+/**
+ * The feed files its films under a category it spells "Sceening". Venues that list a film by its
+ * name alone ("The Science of Sleep @ Matmon") are only recognisable by that category, and the
+ * same category also covers concerts of film music, so those are told apart by their other tags.
+ */
+const SCREENING_CATEGORY = /\bscr?e+ning\b/i;
+const NOT_FILM_CATEGORY = /\b(live ?music|musicians|artists|parties|rave|stand ?up)\b/i;
+/**
+ * A night of several films under one name ("Double Feature: Tokyo Into the Night", "Neil Breen
+ * Festival"). Listed, but not looked up as a single film: the catalogue search answers a
+ * programme's name with whichever film happens to share a word with it.
+ */
+const PROGRAMME_RE = /\b(double feature|triple feature|festival|marathon)\b/i;
+/** An entry that runs for days is a festival's umbrella listing, not a screening. */
+const MAX_SCREENING_MS = 6 * 3600_000;
+
+function isScreening(ev: Record<string, string>): boolean {
+  const summary = ev.SUMMARY ?? "";
+  const categories = ev.CATEGORIES ?? "";
+  if (NOT_SCREENING_RE.test(summary)) return false;
+  return SCREENING_RE.test(summary) || (SCREENING_CATEGORY.test(categories) && !NOT_FILM_CATEGORY.test(categories));
+}
 
 /** "Tapes of Revolution - Screening @ Beit Radical -  - 23/09/2026 - 9:00 pm" -> title + venue. */
 function parseSummary(summary: string): { title: string; venue: string } | null {
@@ -299,19 +329,21 @@ async function fromSecretTelAviv(days: number): Promise<{ venues: Venue[]; films
 
   for (const ev of icalEvents(text)) {
     const summary = ev.SUMMARY ?? "";
-    if (!SCREENING_RE.test(summary) || NOT_SCREENING_RE.test(summary)) continue;
+    if (!isScreening(ev)) continue;
     const parsed = parseSummary(summary);
     if (!parsed) continue;
-    const v = (await resolveVenue(parsed.venue)) ?? (findVenue(summary) ? toVenue(findVenue(summary)!) : null);
-    if (!v) continue;
     const startsAt = ev.DTSTART ? icalToIso(ev.DTSTART, ev.DTSTART_PARAMS ?? "") : null;
     if (!startsAt) continue;
     const t = new Date(startsAt).getTime();
     if (!Number.isFinite(t) || t < now - 6 * 3600_000 || t > horizon) continue;
+    const endsAt = ev.DTEND ? icalToIso(ev.DTEND, ev.DTEND_PARAMS ?? "") : null;
+    if (endsAt && new Date(endsAt).getTime() - t > MAX_SCREENING_MS) continue;
+    const v = (await resolveVenue(parsed.venue)) ?? (findVenue(summary) ? toVenue(findVenue(summary)!) : null);
+    if (!v) continue;
     venues.set(v.id, v);
     const filmId = `stlv-${shortHash(parsed.title.toLowerCase())}`;
     if (!films.has(filmId)) {
-      films.set(filmId, { chain: CHAIN, sourceId: filmId, title: parsed.title, synopsis: ev.DESCRIPTION ? ev.DESCRIPTION.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 600) : undefined, isEvent: false });
+      films.set(filmId, { chain: CHAIN, sourceId: filmId, title: parsed.title, synopsis: ev.DESCRIPTION ? ev.DESCRIPTION.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 600) : undefined, isEvent: PROGRAMME_RE.test(parsed.title) });
     }
     screenings.push({ chain: CHAIN, sourceId: `stlv-${ev.UID ?? `${filmId}-${startsAt}`}`, sourceFilmId: filmId, venueId: v.id, startsAt, attrs: v.kind === "outdoor" ? ["outdoor"] : [], bookingUrl: ev.URL || "https://www.secrettelaviv.com/" });
   }

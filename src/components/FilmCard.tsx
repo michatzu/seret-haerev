@@ -39,7 +39,7 @@ export function FilmCard({ row, q, search }: { row: FilmRow; q: Query; search: s
 
   return (
     <SwipeToFile filmId={row.film.id} title={row.film.title}>
-    <article className="relative flex flex-col gap-3 rounded-xl border border-line bg-card p-3.5">
+    <article data-card className="relative flex flex-col gap-3 rounded-xl border border-line bg-card p-3.5 transition-colors">
       <div className="flex gap-3">
       <Link href={href} className="shrink-0" aria-label={row.film.title}>
         <Poster filmId={row.film.id} hasPoster={hasPoster(row.film)} alt="" width={56} height={84} />

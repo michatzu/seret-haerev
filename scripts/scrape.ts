@@ -8,6 +8,7 @@ import { scrapeCinematheques } from "@/scraper/cinematheques";
 import { scrapePopup } from "@/scraper/popup";
 import { scrapeSmarticket } from "@/scraper/smarticket";
 import { scrapeBeitGabriel } from "@/scraper/betgabriel";
+import { scrapeJaffaCinema } from "@/scraper/jaffacinema";
 import { buildSnapshot, classifyAudience, mergeByTmdbId, mergeLabelledScreenings } from "@/scraper/normalize";
 import { carryForward } from "@/scraper/carry";
 import { rememberRetired } from "@/scraper/retired";
@@ -26,6 +27,7 @@ const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }
   { chain: "other", label: "popup", run: scrapePopup },
   { chain: "other", label: "smarticket", run: scrapeSmarticket },
   { chain: "other", label: "beit gabriel", run: scrapeBeitGabriel },
+  { chain: "other", label: "jaffa cinema", run: scrapeJaffaCinema },
 ];
 
 async function main() {

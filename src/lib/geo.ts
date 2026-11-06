@@ -50,3 +50,35 @@ export const CITIES: Place[] = [
 ];
 
 export const DEFAULT_PLACE: Place = CITIES[0];
+
+/**
+ * The label a position from the device is stored under. It is never shown as such once the page
+ * has been closed: by the next visit it is only where the viewer was, so it is shown by its area.
+ */
+export const PRECISE_LABEL = "המיקום שלי";
+
+/**
+ * Named areas for describing a remembered position in a word or two. The picker's cities, with
+ * Tel Aviv split the way people talk about it, and Holon and Bat Yam apart. Matched by the nearest
+ * centre, which is rough at the edges and plenty for a label.
+ */
+const AREAS: Place[] = [
+  { label: "צפון תל אביב", lat: 32.103, lng: 34.795 },
+  { label: "מרכז תל אביב", lat: 32.074, lng: 34.778 },
+  { label: "דרום תל אביב", lat: 32.053, lng: 34.777 },
+  { label: "יפו", lat: 32.046, lng: 34.756 },
+  { label: "בת ים", lat: 32.018, lng: 34.747 },
+  { label: "חולון", lat: 32.015, lng: 34.786 },
+  ...CITIES.filter((c) => c.label !== "תל אביב" && c.label !== "חולון ובת ים"),
+];
+const NEAR_KM = 8;
+
+/** "דרום תל אביב", or "ליד כרמיאל" for somewhere between the named places. */
+export function areaName(p: LatLng): string {
+  let best = AREAS[0], bestD = Infinity;
+  for (const a of AREAS) {
+    const d = distanceKm(a, p);
+    if (d < bestD) { best = a; bestD = d; }
+  }
+  return bestD <= NEAR_KM ? best.label : `ליד ${best.label}`;
+}

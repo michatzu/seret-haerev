@@ -1,6 +1,6 @@
 "use client";
 
-import type { Place } from "./geo";
+import { PRECISE_LABEL, type Place } from "./geo";
 
 /**
  * Keeping the chosen place, from the browser's side.
@@ -65,7 +65,7 @@ export function currentPosition(timeout = 30_000): Promise<Place | PositionFailu
   return new Promise((resolve) => {
     if (!("geolocation" in navigator)) return resolve("unavailable");
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "המיקום שלי" }),
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: PRECISE_LABEL }),
       (err) => resolve(err.code === err.PERMISSION_DENIED ? "denied" : err.code === err.TIMEOUT ? "timeout" : "unavailable"),
       { enableHighAccuracy: false, timeout, maximumAge: 2 * 60_000 },
     );

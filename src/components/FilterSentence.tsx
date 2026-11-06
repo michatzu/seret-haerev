@@ -8,8 +8,7 @@ import { Caret } from "./Icons";
 import { formatDistance } from "@/lib/geo";
 import { GENRES } from "@/lib/genres";
 import {
-  isMultiDay,
-  DEFAULT_RADIUS, FROM_LABELS, HALLS, HALL_LABELS, RADIUS_LABELS, dayLabel, defaultFrom, genresLabel, hallsLabel, queryToSearch, venuesLabel,
+  DEFAULT_RADIUS, FROM_LABELS, HALLS, HALL_LABELS, RADIUS_LABELS, dayLabel, defaultFrom, genresLabel, hallsLabel, nextSort, queryToSearch, venuesLabel,
   type DayKey, type FromKey, type HallKey, type Query, type RadiusKey,
 } from "@/lib/query";
 
@@ -94,7 +93,7 @@ export function FilterSentence({ q, venues, genres, showGenres = true }: { q: Qu
 
       <BottomSheet open={open === "day"} onClose={close} title="יום">
         {(["today", "tomorrow", "d2", "d3", "week", "month"] as DayKey[]).map((d, i) => (
-          <SheetOption key={d} first={i === 0} selected={q.day === d} onSelect={() => go({ ...q, day: d, from: nextFrom(q, d), sort: isMultiDay(d) && q.sort === "time" ? "dist" : q.sort })}>
+          <SheetOption key={d} first={i === 0} selected={q.day === d} onSelect={() => go({ ...q, day: d, from: nextFrom(q, d), sort: nextSort(q, d) })}>
             {dayLabel(d)}
           </SheetOption>
         ))}

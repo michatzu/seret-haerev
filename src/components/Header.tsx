@@ -10,7 +10,7 @@ export function Header({ q, place, venues, genres }: { q: Query; place: Resolved
       <div className="mx-auto max-w-[520px]">
         <div className="flex min-h-[44px] items-center justify-between gap-2">
           <SiteTitle />
-          <LocationButton label={place.label} source={place.source} here={{ lat: place.lat, lng: place.lng }} />
+          <LocationButton label={place.label} source={place.source} precise={!!place.precise} here={{ lat: place.lat, lng: place.lng }} />
         </div>
         <FilterSentence q={q} venues={venues} genres={genres} />
       </div>

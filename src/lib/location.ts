@@ -1,9 +1,16 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { CITIES, DEFAULT_PLACE, distanceKm, type Place } from "./geo";
+import { CITIES, DEFAULT_PLACE, PRECISE_LABEL, areaName, distanceKm, type Place } from "./geo";
 
 export type PlaceSource = "cookie" | "ip" | "default";
-export interface ResolvedPlace extends Place { source: PlaceSource }
+export interface ResolvedPlace extends Place {
+  source: PlaceSource;
+  /**
+   * The point came from the device, on some earlier visit. The label is then the area it fell in,
+   * not "my location": until the device confirms it again, it is only where the viewer last was.
+   */
+  precise?: boolean;
+}
 
 export const LOC_COOKIE = "loc";
 
@@ -14,8 +21,9 @@ export async function getPlace(): Promise<ResolvedPlace> {
     const [lat, lng, ...rest] = c.split(",");
     const la = Number(lat), ln = Number(lng);
     if (Number.isFinite(la) && Number.isFinite(ln)) {
-      const label = decodeURIComponent(rest.join(",") || "") || nearestCity({ lat: la, lng: ln }).label;
-      return { lat: la, lng: ln, label, source: "cookie" };
+      const stored = decodeURIComponent(rest.join(",") || "");
+      if (stored === PRECISE_LABEL) return { lat: la, lng: ln, label: areaName({ lat: la, lng: ln }), source: "cookie", precise: true };
+      return { lat: la, lng: ln, label: stored || nearestCity({ lat: la, lng: ln }).label, source: "cookie" };
     }
   }
   const h = await headers();

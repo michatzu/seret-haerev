@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, type ReactNode } from "react";
-import { setStatus } from "@/lib/filmLists";
+import { setStatus, statusOf, useFilmLists } from "@/lib/filmLists";
 import { track } from "@/lib/track";
 
 const COMMIT_PX = 78; // past this the gesture counts
@@ -10,14 +10,16 @@ const RUBBER = 0.55; // resistance once the card is already past the commit poin
 const SETTLE_MS = 190;
 
 /**
- * Drag a card sideways to file it: right for "want to see", left for "not interested". Directions
- * are physical, not reading order, so they mean the same thing on a Hebrew page.
+ * Drag a card sideways to file it: right marks it "want to see" and leaves it in place, left files
+ * it as "not interested" and takes it out of the list. Directions are physical, not reading order,
+ * so they mean the same thing on a Hebrew page.
  *
  * The card is moved by writing to its style inside a single animation frame rather than through
  * React state: a re-render per pointermove makes a list of eighty cards stutter. React is only
  * involved once, at the end, when the film actually changes list.
  */
 export function SwipeToFile({ filmId, title, children }: { filmId: string; title: string; children: ReactNode }) {
+  const wanted = statusOf(useFilmLists().store, filmId) === "want";
   const card = useRef<HTMLDivElement>(null);
   const right = useRef<HTMLDivElement>(null);
   const left = useRef<HTMLDivElement>(null);
@@ -71,9 +73,21 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
       if (card.current) card.current.style.willChange = "";
       return;
     }
-    if (Math.abs(dx) >= COMMIT_PX) {
-      const status = dx > 0 ? "want" : "skip";
-      settle(dx > 0 ? window.innerWidth : -window.innerWidth, () => {
+    if (dx >= COMMIT_PX) {
+      // Marking a film keeps it in the list, so the card springs back, now carrying the mark.
+      // Like the button, a second swipe takes the mark off again. Filed once the card is home, so
+      // the hint behind it does not change its words on the way back.
+      settle(0, () => {
+        g.current.dx = 0;
+        schedule();
+        if (card.current) card.current.style.willChange = "";
+        const now = setStatus(filmId, "want", title);
+        if (now) track.list(now, title);
+      });
+      return;
+    }
+    if (dx <= -COMMIT_PX) {
+      settle(-window.innerWidth, () => {
         // Put the card back where it belongs before it is hidden. The stylesheet only hides it, so
         // a transform left behind is still there when an undo brings the card back, which drops it
         // a screen's width to one side and widens the page with it.
@@ -84,8 +98,8 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
           el.style.transform = "";
           el.style.willChange = "";
         }
-        setStatus(filmId, status, title);
-        track.list(status, title);
+        setStatus(filmId, "skip", title);
+        track.list("skip", title);
       });
       return;
     }
@@ -108,7 +122,7 @@ export function SwipeToFile({ filmId, title, children }: { filmId: string; title
         </div>
         <div ref={right} style={{ opacity: 0 }} className="flex items-center gap-1.5 text-[13px] font-medium text-accent">
           <BookmarkGlyph />
-          <span>מעניין</span>
+          <span>{wanted ? "הסרת הסימון" : "מעניין"}</span>
         </div>
       </div>
 

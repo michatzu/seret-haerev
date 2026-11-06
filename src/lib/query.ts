@@ -48,6 +48,15 @@ export const DEFAULT_RADIUS: RadiusKey = "15";
  */
 export const defaultFrom = (day: DayKey): FromKey => (day === "today" ? "now" : "all");
 
+/** "What is on next" is the question on any one day. Over several days there is no single clock to sort by, so distance. */
+export const defaultSort = (day: DayKey): SortKey => (isMultiDay(day) ? "dist" : "time");
+
+/** The sort to keep when the day changes: a default follows the day, a choice the viewer made stays if it still applies. */
+export function nextSort(q: Query, day: DayKey): SortKey {
+  if (q.sort === defaultSort(q.day)) return defaultSort(day);
+  return isMultiDay(day) && q.sort === "time" ? "dist" : q.sort;
+}
+
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const list = (v: string | string[] | undefined) => (one(v) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -62,7 +71,7 @@ export function parseQuery(sp: SP): Query {
   const venues = [...new Set(list(sp.v))];
   const genres = [...new Set(list(sp.g))];
   const q = (one(sp.q) ?? "").trim().slice(0, 60);
-  let sort = pick(one(sp.sort), SORTS, "dist");
+  let sort = pick(one(sp.sort), SORTS, defaultSort(day));
   if (isMultiDay(day) && sort === "time") sort = "dist";
   return { day, from, radius, halls, venues, genres, q, sort, kids: one(sp.kids) === "1", small: one(sp.small) === "1", far: one(sp.far) === "1" };
 }
@@ -77,7 +86,7 @@ export function queryToSearch(q: Query): string {
   if (q.venues.length) p.set("v", q.venues.join(","));
   if (q.genres.length) p.set("g", q.genres.join(","));
   if (q.q) p.set("q", q.q);
-  if (q.sort !== "dist") p.set("sort", q.sort);
+  if (q.sort !== defaultSort(q.day)) p.set("sort", q.sort);
   if (q.kids) p.set("kids", "1");
   if (q.small) p.set("small", "1");
   if (q.far) p.set("far", "1");
