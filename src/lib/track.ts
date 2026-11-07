@@ -22,6 +22,10 @@ export const track = {
   list(status: string, film: string) {
     vercelTrack("list", { status, film });
   },
+  /** Which films get sent to somebody: the way the site reaches people who haven't heard of it. */
+  share(film: string) {
+    vercelTrack("share", { film });
+  },
   /** What people look for, which is the only way to learn what the catalogue is missing. */
   search(term: string) {
     const t = term.trim().slice(0, 40);

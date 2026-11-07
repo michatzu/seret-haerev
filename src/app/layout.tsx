@@ -8,6 +8,7 @@ import { InstallCapture } from "@/components/InstallCapture";
 import { FirstListHint } from "@/components/FirstListHint";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const plex = IBM_Plex_Sans_Hebrew({
@@ -24,22 +25,11 @@ const frank = Frank_Ruhl_Libre({
   display: "swap",
 });
 
-const TITLE = "סרט הערב";
-const DESCRIPTION = "מה מוקרן לידך היום, בכל בתי הקולנוע בישראל, במקום אחד.";
-
-/**
- * Every share preview needs an absolute address for the image, and a relative one silently
- * becomes localhost. Vercel hands us the production domain; a domain of our own would go in
- * NEXT_PUBLIC_SITE_URL and win.
- */
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3000");
+const TITLE = SITE_TITLE;
+const DESCRIPTION = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: { default: TITLE, template: `%s · ${TITLE}` },
   description: DESCRIPTION,
   applicationName: TITLE,

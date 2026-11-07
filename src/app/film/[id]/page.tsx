@@ -6,6 +6,7 @@ import { FilterSentence } from "@/components/FilterSentence";
 import { LazyGroup } from "@/components/LazyGroup";
 import { FilmActions } from "@/components/FilmActions";
 import { getData } from "@/lib/data";
+import { SITE_TITLE } from "@/lib/site";
 import { getPlace } from "@/lib/location";
 import { distanceKm, formatDistance } from "@/lib/geo";
 import { venueOptions } from "@/lib/options";
@@ -20,7 +21,18 @@ export async function generateMetadata(props: PageProps<"/film/[id]">): Promise<
   const { id } = await props.params;
   const data = await getData();
   const film = data.films.get(id);
-  return { title: film?.title ?? "סרט", description: film?.synopsis?.slice(0, 160) };
+  if (!film) return { title: "סרט" };
+  const description = film.shortSynopsis ?? film.synopsis?.slice(0, 160) ?? `איפה ומתי מוקרן ${film.title}, בכל בתי הקולנוע בישראל.`;
+  const url = `/film/${film.id}`;
+  // A shared link previews the film, not the site: the layout's openGraph would otherwise win. The
+  // image comes from opengraph-image.tsx beside this page. One address however the list was filtered.
+  return {
+    title: film.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", siteName: SITE_TITLE, locale: "he_IL", url, title: `${film.title} · ${SITE_TITLE}`, description },
+    twitter: { card: "summary_large_image", title: `${film.title} · ${SITE_TITLE}`, description },
+  };
 }
 
 const OPEN_VENUES = 3;

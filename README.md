@@ -50,7 +50,7 @@ scripts/scrape.ts        הרצת כל המתאמים וכתיבת ה-snapshot
 src/scraper/             מתאם לכל מקור (cineworld, modulus, lev, cinematheques, popup), normalize, tmdb
 src/data/venues.ts       בתי הקולנוע וקואורדינטות
 src/lib/                 טיפוסים, זמן (Asia/Jerusalem), גיאוגרפיה, סינון ומיון (query.ts), טעינת נתונים
-src/app/                 עמודים: / (הרשימה), /film/[id] (דף סרט), /api/poster/[id] (פרוקסי פוסטרים)
+src/app/                 עמודים: / (הרשימה), /film/[id] (דף סרט ותמונת שיתוף), /about (אודות וקרדיטים), sitemap.xml, robots.txt, /api/poster/[id] (פרוקסי פוסטרים)
 src/components/          רכיבי UI
 ```
 
@@ -60,6 +60,7 @@ src/components/          רכיבי UI
 
 - `SNAPSHOT_URL` — הלוח המעודכן בענף `data`. אם הריפו פרטי, צריך גם `SNAPSHOT_TOKEN` עם טוקן קריאה, אחרת הכתובת מחזירה 404.
   כש-GitHub לא עונה, האתר מבקש את אותו קובץ דרך jsDelivr (`cdn.jsdelivr.net/gh/…@data/…`, נגזר מהכתובת הזו), שעשוי להיות מפגר בכמה שעות. רק אם גם הוא לא עונה, האתר מציג את העותק שנארז עם הבנייה. `SNAPSHOT_MIRROR_URL` מחליף את כתובת הגיבוי, וערך ריק מבטל אותה. jsDelivr קורא רק ריפו ציבורי.
+- `NEXT_PUBLIC_SITE_URL` — כתובת האתר, אם יהיה לו דומיין משלו. ממנה נבנות תמונות השיתוף, ה-sitemap ו-robots.txt; בלעדיה נלקחת הכתובת ש-Vercel נותן.
 - `TMDB_API_KEY` — פוסטרים, תקצירים בעברית, מדינה, שנה, במאי ושחקנים ([themoviedb.org](https://www.themoviedb.org/settings/api), חינם).
 - ציון IMDb מגיע ישירות ממאגר הנתונים היומי של IMDb (title.ratings), בלי מפתח; צריך רק את מזהה ה-IMDb שמגיע מ-TMDB.
 

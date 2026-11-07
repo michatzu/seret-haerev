@@ -1,6 +1,7 @@
 import { BackLink } from "../BackLink";
 import { ChevronForward, Film as FilmIcon, Play } from "../Icons";
 import { PosterZoom } from "./PosterZoom";
+import { ShareButton } from "./ShareButton";
 import { hasPoster } from "../Poster";
 import { languageName } from "@/lib/format";
 import type { Film } from "@/lib/types";
@@ -24,6 +25,7 @@ export function Hero({ film, backHref }: { film: Film; backHref: string }) {
       <div className="relative mx-auto flex w-full max-w-[520px] flex-col gap-4 px-4 pb-5 pt-[max(16px,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between">
           <BackLink href={backHref} aria-label="חזרה" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15"><ChevronForward width={20} height={20} /></BackLink>
+          <ShareButton filmId={film.id} title={film.title} />
         </div>
         <div className="flex gap-4">
           {hasPoster(film) ? (
