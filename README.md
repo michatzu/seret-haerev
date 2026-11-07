@@ -59,6 +59,7 @@ src/components/          רכיבי UI
 העתיקו את `.env.example` ל-`.env.local`:
 
 - `SNAPSHOT_URL` — הלוח המעודכן בענף `data`. אם הריפו פרטי, צריך גם `SNAPSHOT_TOKEN` עם טוקן קריאה, אחרת הכתובת מחזירה 404.
+  כש-GitHub לא עונה, האתר מבקש את אותו קובץ דרך jsDelivr (`cdn.jsdelivr.net/gh/…@data/…`, נגזר מהכתובת הזו), שעשוי להיות מפגר בכמה שעות. רק אם גם הוא לא עונה, האתר מציג את העותק שנארז עם הבנייה. `SNAPSHOT_MIRROR_URL` מחליף את כתובת הגיבוי, וערך ריק מבטל אותה. jsDelivr קורא רק ריפו ציבורי.
 - `TMDB_API_KEY` — פוסטרים, תקצירים בעברית, מדינה, שנה, במאי ושחקנים ([themoviedb.org](https://www.themoviedb.org/settings/api), חינם).
 - ציון IMDb מגיע ישירות ממאגר הנתונים היומי של IMDb (title.ratings), בלי מפתח; צריך רק את מזהה ה-IMDb שמגיע מ-TMDB.
 
