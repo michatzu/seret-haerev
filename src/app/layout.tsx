@@ -44,6 +44,8 @@ export const metadata: Metadata = {
     url: "/",
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  // Proves to Google Search Console that the site is ours. Removing it un-verifies the property.
+  verification: { google: "lknrVz91o437ZJy_OiPlQ0CiPT26aq7-tJuQycgDwp0" },
 };
 
 export const viewport: Viewport = {
