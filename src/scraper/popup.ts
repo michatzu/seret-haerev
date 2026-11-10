@@ -9,14 +9,16 @@
  *  2. Secret Tel Aviv's public iCal feed. One request, English titles, covers the independent
  *     venues the municipality never lists.
  *
- * Both are undocumented third-party endpoints. Either failing is reported and skipped, never fatal.
+ * Both are undocumented third-party endpoints, and each is its own source to the scraper: one that
+ * does not answer is carried forward from its last read like any other source, while the other is
+ * published as read. They can list the same night at the same place; the scraper then keeps the
+ * municipality's, with its Hebrew title, because it comes first in its list of sources.
  */
 import type { AdapterResult, RawFilm, RawScreening, Venue } from "@/lib/types";
 import { getText } from "./http";
 import { zonedToIso } from "@/lib/tz";
 import { shortHash } from "@/lib/text";
-import { geocode, saveGeocodeCache } from "./geocode";
-import { scrapeFestivals } from "./festivals";
+import { geocode } from "./geocode";
 
 const CHAIN = "other" as const;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -379,6 +381,7 @@ async function fromSecretTelAviv(days: number): Promise<{ venues: Venue[]; films
   const films = new Map<string, RawFilm>();
   const screenings: RawScreening[] = [];
   const venues = new Map<string, Venue>();
+  const taken = new Set<string>();
   const now = Date.now();
   const horizon = now + days * 864e5;
 
@@ -395,6 +398,10 @@ async function fromSecretTelAviv(days: number): Promise<{ venues: Venue[]; films
     if (endsAt && new Date(endsAt).getTime() - t > MAX_SCREENING_MS) continue;
     const v = (await resolveVenue(parsed.venue)) ?? (findVenue(summary) ? toVenue(findVenue(summary)!) : null);
     if (!v) continue;
+    // the feed can list one night twice
+    const slot = `${v.id}|${startsAt}`;
+    if (taken.has(slot)) continue;
+    taken.add(slot);
     venues.set(v.id, v);
     const filmId = `stlv-${shortHash(parsed.title.toLowerCase())}`;
     if (!films.has(filmId)) {
@@ -409,33 +416,10 @@ async function fromSecretTelAviv(days: number): Promise<{ venues: Venue[]; films
 
 const DAYS = 30;
 
-export async function scrapePopup(): Promise<AdapterResult> {
-  const [muni, stlv] = await Promise.allSettled([fromMunicipality(DAYS), fromSecretTelAviv(DAYS)]);
-  await saveGeocodeCache();
-  if (muni.status === "rejected" && stlv.status === "rejected") throw muni.reason;
-  for (const r of [muni, stlv]) {
-    if (r.status === "rejected") console.warn("  popup source failed:", r.reason instanceof Error ? r.reason.message : r.reason);
-  }
-  const fests = await scrapeFestivals().catch((e) => {
-    console.warn("  festivals failed:", e instanceof Error ? e.message : e);
-    return { venues: [], films: [], screenings: [] };
-  });
-  const parts = [...[muni, stlv].filter((r) => r.status === "fulfilled").map((r) => r.value), fests];
+export async function scrapeTlvCity(): Promise<AdapterResult> {
+  return { chain: CHAIN, ...(await fromMunicipality(DAYS)) };
+}
 
-  const venues = new Map<string, Venue>();
-  const films = new Map<string, RawFilm>();
-  const seen = new Set<string>();
-  const screenings: RawScreening[] = [];
-  for (const p of parts) {
-    for (const v of p.venues) venues.set(v.id, v);
-    for (const f of p.films) films.set(f.sourceId, f);
-    for (const s of p.screenings) {
-      // the municipality wins on a clash: same venue and start time, Hebrew title
-      const key = `${s.venueId}|${s.startsAt}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      screenings.push(s);
-    }
-  }
-  return { chain: CHAIN, venues: [...venues.values()], films: [...films.values()], screenings };
+export async function scrapeSecretTelAviv(): Promise<AdapterResult> {
+  return { chain: CHAIN, ...(await fromSecretTelAviv(DAYS)) };
 }

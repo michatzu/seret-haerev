@@ -1,11 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AdapterResult, Chain, Snapshot, SourceReport } from "@/lib/types";
+import type { AdapterResult, Chain, RawScreening, Snapshot, SourceReport } from "@/lib/types";
 import { PLANET, RAVHEN, scrapeCineworld } from "@/scraper/cineworld";
 import { scrapeCinemaCity, scrapeHot, scrapeMovieland } from "@/scraper/modulus";
 import { scrapeLev } from "@/scraper/lev";
 import { scrapeCinematheques } from "@/scraper/cinematheques";
-import { scrapePopup } from "@/scraper/popup";
+import { scrapeSecretTelAviv, scrapeTlvCity } from "@/scraper/popup";
+import { scrapeHaifaFestival, scrapeJerusalemTheatre } from "@/scraper/festivals";
+import { saveGeocodeCache } from "@/scraper/geocode";
 import { scrapeSmarticket } from "@/scraper/smarticket";
 import { scrapeBeitGabriel } from "@/scraper/betgabriel";
 import { scrapeJaffaCinema } from "@/scraper/jaffacinema";
@@ -17,6 +19,13 @@ import { fillPosters } from "@/scraper/posters";
 import { addSummaries } from "@/scraper/summaries";
 import { checkHealth } from "@/scraper/health";
 
+/**
+ * Every source the scraper reads, each with its own label. A source is the unit that is carried
+ * forward when it fails and that the health check watches, so two feeds are two sources even when
+ * they fill the same kind of venue: the municipality and Secret Tel Aviv were once one, and a
+ * timeout on one took its venues off the site while the other kept the pair counted as read.
+ * Where two sources list the same venue at the same minute, the one earlier here wins it.
+ */
 const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }[] = [
   { chain: "planet", run: () => scrapeCineworld(PLANET) },
   { chain: "ravhen", run: () => scrapeCineworld(RAVHEN) },
@@ -25,7 +34,10 @@ const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }
   { chain: "movieland", run: scrapeMovieland },
   { chain: "lev", run: scrapeLev },
   { chain: "cinematheque", run: scrapeCinematheques },
-  { chain: "other", label: "popup", run: scrapePopup },
+  { chain: "other", label: "tlv city", run: scrapeTlvCity },
+  { chain: "other", label: "secret tlv", run: scrapeSecretTelAviv },
+  { chain: "other", label: "haifa festival", run: scrapeHaifaFestival },
+  { chain: "other", label: "jerusalem theatre", run: () => scrapeJerusalemTheatre() },
   { chain: "other", label: "smarticket", run: scrapeSmarticket },
   { chain: "other", label: "beit gabriel", run: scrapeBeitGabriel },
   { chain: "other", label: "jaffa cinema", run: scrapeJaffaCinema },
@@ -34,25 +46,38 @@ const tasks: { chain: Chain; label?: string; run: () => Promise<AdapterResult> }
 async function main() {
   const only = process.argv.slice(2);
   const selected = only.length ? tasks.filter((t) => only.includes(t.chain) || (t.label && only.includes(t.label))) : tasks;
-  const results: AdapterResult[] = [];
-  const reports: SourceReport[] = [];
-  const venueSource: Record<string, string> = {};
-  const warnings: Record<string, string[]> = {};
-  await Promise.all(
-    selected.map(async (t) => {
+  const outcomes = await Promise.all(
+    selected.map(async (t): Promise<{ label: string; r?: AdapterResult; report: SourceReport }> => {
+      const label = t.label ?? t.chain;
       const t0 = Date.now();
       try {
         const r = await t.run();
-        results.push(r);
-        for (const v of r.venues) venueSource[v.id] = t.label ?? t.chain;
-        for (const s of r.screenings) venueSource[s.venueId] = t.label ?? t.chain;
-        if (r.warnings?.length) warnings[t.label ?? t.chain] = r.warnings;
-        reports.push({ chain: t.label ?? t.chain, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 });
+        return { label, r, report: { chain: label, ok: true, films: r.films.length, screenings: r.screenings.length, ms: Date.now() - t0 } };
       } catch (e) {
-        reports.push({ chain: t.label ?? t.chain, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) });
+        return { label, report: { chain: label, ok: false, films: 0, screenings: 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) } };
       }
     }),
   );
+  // the pop-up sources look up addresses they do not know; the answers are written once, here
+  await saveGeocodeCache();
+  const reports = outcomes.map((o) => o.report);
+
+  // In the order of `tasks`, so that of two sources listing one night, the earlier keeps it.
+  const results: AdapterResult[] = [];
+  const venueSource: Record<string, string> = {};
+  const warnings: Record<string, string[]> = {};
+  const slot = (s: RawScreening) => `${s.venueId}|${s.startsAt}`;
+  const taken = new Set<string>();
+  for (const { label, r } of outcomes) {
+    if (!r) continue;
+    const screenings = r.screenings.filter((s) => !taken.has(slot(s)));
+    for (const s of screenings) taken.add(slot(s));
+    results.push({ ...r, screenings });
+    // a venue is the source's that lists screenings there, not merely the place
+    for (const v of r.venues) venueSource[v.id] ??= label;
+    for (const s of screenings) venueSource[s.venueId] = label;
+    if (r.warnings?.length) warnings[label] = r.warnings;
+  }
   const snapshot = buildSnapshot(results, reports.sort((a, b) => a.chain.localeCompare(b.chain)));
   snapshot.venueSource = venueSource;
 
@@ -90,7 +115,7 @@ async function main() {
   const out = path.join(process.cwd(), "data", "snapshot.json");
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snapshot));
-  for (const r of reports) console.log(`${r.ok ? "ok " : "ERR"} ${r.chain.padEnd(11)} films=${String(r.films).padStart(4)} screenings=${String(r.screenings).padStart(5)} ${r.ms}ms ${r.error ?? ""}`);
+  for (const r of reports) console.log(`${r.ok ? "ok " : "ERR"} ${r.chain.padEnd(17)} films=${String(r.films).padStart(4)} screenings=${String(r.screenings).padStart(5)} ${r.ms}ms ${r.error ?? ""}`);
   for (const p of snapshot.health.problems) console.log(`health: ${p}`);
   console.log(`snapshot: ${snapshot.films.length} films, ${snapshot.screenings.length} screenings, ${snapshot.venues.length} venues, ${retired} names kept for films that left -> ${path.relative(process.cwd(), out)}`);
 }

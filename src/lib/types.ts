@@ -124,7 +124,7 @@ export interface Snapshot {
    */
   carried?: Record<string, string>;
   /**
-   * Which source each venue came from, by the adapter's label ("popup", "planet"). A venue is only
+   * Which source each venue came from, by the adapter's label ("tlv city", "planet"). A venue is only
    * ever carried when its own source failed: one its source simply stopped listing — a duplicate
    * merged away, a concert filtered out — is gone, not missing.
    */

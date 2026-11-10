@@ -128,20 +128,6 @@ export async function scrapeHaifaFestival(): Promise<AdapterResult> {
   return { chain: CHAIN, venues: [...venues.values()], films: [...films.values()], screenings };
 }
 
-/* ------------------------------------------------------------------ entry */
-
-export async function scrapeFestivals(): Promise<AdapterResult> {
-  const parts = await Promise.allSettled([scrapeHaifaFestival(), scrapeJerusalemTheatre()]);
-  for (const p of parts) if (p.status === "rejected") console.warn("  festival source failed:", p.reason instanceof Error ? p.reason.message : p.reason);
-  const ok = parts.filter((p): p is PromiseFulfilledResult<AdapterResult> => p.status === "fulfilled").map((p) => p.value);
-  return {
-    chain: CHAIN,
-    venues: ok.flatMap((r) => r.venues),
-    films: ok.flatMap((r) => r.films),
-    screenings: ok.flatMap((r) => r.screenings),
-  };
-}
-
 /* ----------------------------------------------- Jerusalem Theatre (a theatre that screens films) */
 
 const JT_BOARD = "https://www.jerusalem-theatre.co.il/na_ajax.php?action=getBoard";
